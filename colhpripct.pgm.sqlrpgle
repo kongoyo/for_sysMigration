@@ -146,7 +146,7 @@ dow sqlcod = 0;
     else;
     endif;
 
-  exec sql
+    exec sql
     fetch next from c1 into :cfgsrc.srcseq, 
                             :cfgsrc.srcdat, 
                             :cfgsrc.srcdta ;
