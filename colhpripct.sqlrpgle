@@ -1,32 +1,29 @@
 **free
 
-ctl-opt actgrp(*caller) option(*srcstmt) ; // Add debug options
+ctl-opt option(*srcstmt) dftactgrp(*no) ; // Add debug options
 
 // 定義 config source : 使用 RTVCFGSRC 指令抓取 *CTLD source
 dcl-ds cfgsrc qualified;
-  srcseq zoned(6) inz;
-  srcdat zoned(6) inz;
-  srcdta char(120) inz;
+  srcseq zoned(6);
+  srcdat zoned(6);
+  srcdta char(120);
 end-ds;
 
 // 定義 config table : 將 *CTLD 資訊寫入表格供後續使用
 
 dcl-ds cfgtbl qualified;
-  ctld char(10) inz;
-  linktype char(10) inz;
-  rmtintneta char(15) inz;
-  lclintneta char(15) inz;
-  rmtcpname char(10) inz;
+  ctld char(10);
+  linktype char(10);
+  rmtintneta char(15);
+  lclintneta char(15);
+  rmtcpname char(10);
 end-ds;
 
 dcl-s currentParsedLine char(120);
-dcl-s pendingCommand char(6000) inz;
-dcl-s commandEndsHereThisLine ind inz(*off); // Renamed for clarity: indicates if the *current line* signifies the end o
+dcl-s pendingCommand char(1000) inz;
+dcl-s commandEndsHereThisLine ind inz(*off);
 
 dcl-s startPos int(10);
-dcl-s endPos int(10);
-dcl-s length int(10);
-
 dcl-s isNewCommandStart ind;
 
 // 定義組合並執行指令區塊
@@ -36,6 +33,10 @@ end-pr;
 dcl-s cmdstr varchar(512) inz;
 dcl-s returnCode int(3) inz;
 // 定義組合併執行指令區塊
+
+// 定義 CFGSRC no commit，否則檔案會無法I/O
+exec sql
+  set transaction isolation level no commit ;
 
 // 抓取 config source
 
@@ -63,10 +64,6 @@ endif;
 // 抓取 config source
 // 拆解 config source
 
-// 定義 CFGSRC no commit，否則檔案會無法I/O
-exec sql
-  set transaction isolation level no commit ;
-
 exec sql
   drop table cfgtbl if exists;
 
@@ -81,7 +78,7 @@ exec sql
 
 exec sql
   declare c1 cursor for
-    select SRCSEQ, SRCDAT, SRCDTA 
+    select srcseq, srcdat, srcdta 
     from qtemp.cfgsrc 
     order by srcseq;
 
@@ -125,31 +122,34 @@ dow sqlcod = 0;
     else;
     endif;
 
-    // 如果新指令為 true 且 pendingCommand 長度大於 0，優先處理 pendingCommand
+    // 如果新指令為 true 且 pendingCommand 長度大於 0，立即處理 pendingCommand
     if isNewCommandStart and %len(%trim(pendingCommand)) > 0;
       ProcessCommand(pendingCommand); 
-      clear pendingCommand; 
-    else;
-    endif;
-
-    // 
-    if %len(%trim(pendingCommand)) > 0;
+      clear pendingCommand;
+    // 如果新指令為 false 且 pendingCommand 長度大於 0，組合 pendingCommand 和 currentPasedLine 
+    elseif %len(%trim(pendingCommand)) > 0;
       pendingCommand = %trimr(pendingCommand) + ' ' + %trim(currentParsedLine);
     else;
       pendingCommand = %trim(currentParsedLine);
     endif;
 
+    // Clear pendingCommand 後方多餘字串
     if %len(%trimr(pendingCommand)) > %len(pendingCommand);
       pendingCommand = %subst(pendingCommand:1:%len(pendingCommand));
     else;
     endif;
 
+    // 如果指令結尾為 true 且 pendingCommand 長度大於 0 ，立即處理 pendingCommand
     if commandEndsHereThisLine and %len(%trim(pendingCommand)) > 0;
       ProcessCommand(pendingCommand); 
       clear pendingCommand; 
     else;
     endif;
 
+  exec sql
+    fetch next from c1 into :cfgsrc.srcseq, 
+                            :cfgsrc.srcdat, 
+                            :cfgsrc.srcdta ;
   endif; 
   // 處理讀取到的資料
 enddo; 
@@ -164,7 +164,12 @@ exec sql
 
 exec sql
    create table ddscinfo.cfgtbl as (
-      select ctld, linktype, rmtintneta, lclintneta, rmtcpname from qtemp.cfgtbl
+      select ctld, 
+             linktype, 
+             rmtintneta, 
+             lclintneta, 
+             rmtcpname 
+      from qtemp.cfgtbl
    ) with data;
 
 *inlr = *on;
@@ -174,7 +179,7 @@ return;
 dcl-proc ProcessCommand;
 
   dcl-pi ProcessCommand;
-    inCommand char(6000) const; 
+    inCommand char(1000) const; 
   end-pi;
 
   dcl-s localStartPos int(10);
@@ -182,6 +187,7 @@ dcl-proc ProcessCommand;
   dcl-s localLength int(10);
 
   dcl-s parsedCommand char(6000);
+
   parsedCommand = inCommand;
   clear cfgtbl;
 
