@@ -180,7 +180,7 @@ exec sql
 
 // 組合 RUNRMTCMD 指令
 
-cmdstr = 'QSYS/RUNRMTCMD CMD( 
+cmdstr = 'QSYS/RUNRMTCMD CMD(';
 
 
 
