@@ -159,6 +159,8 @@ exec sql
 
 // 拆解 config source
 
+// 轉存到 DDSCINFO/CFGTBL
+
 exec sql
    drop table ddscinfo.cfgtbl if exists;
 
@@ -170,7 +172,21 @@ exec sql
              lclintneta, 
              rmtcpname 
       from qtemp.cfgtbl
+      // 篩選符合特定條件的 CTLD
+      where substring(ctld,1,3) = 'TCP'
    ) with data;
+
+// 轉存到 DDSCINFO/CFGTBL
+
+// 組合 RUNRMTCMD 指令
+
+cmdstr = 'QSYS/RUNRMTCMD CMD( 
+
+
+
+
+
+// 組合 RUNRMTCMD 指令
 
 *inlr = *on;
 return;
