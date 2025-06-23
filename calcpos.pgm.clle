@@ -1,0 +1,69 @@
+             PGM        PARM(&OMITDATES &TOMITDAT)
+
+             DCL        VAR(&OMITDATES) TYPE(*CHAR) LEN(219)
+             DCL        VAR(&TOMITDAT) TYPE(*CHAR) LEN(230)
+
+             DCL        VAR(&VARLEN) TYPE(*DEC) LEN(5 0)
+             DCL        VAR(&POS) TYPE(*DEC) LEN(5 0)
+             DCL        VAR(&ASTR) TYPE(*CHAR) LEN(256)
+             DCL        VAR(&ASTREND) TYPE(*CHAR) LEN(256)
+             DCL        VAR(&APOS) TYPE(*DEC) LEN(5 0)
+             DCL        VAR(&ASTRLEN) TYPE(*DEC) LEN(5 0)
+             DCL        VAR(&AENDPOS) TYPE(*DEC) LEN(5 0)
+             DCL        VAR(&BSTR) TYPE(*CHAR) LEN(256)
+             DCL        VAR(&BPOS) TYPE(*DEC) LEN(5 0)
+             DCL        VAR(&BENDPOS) TYPE(*DEC) LEN(5 0)
+
+          /* OMITDATES */
+          /* Test Data : 2017-01-26,2017-02-01,2017-10-04 */
+          /* POS       :           ^                      */
+          /* APOS      :            ^                     */
+          /* AENDPOS   :            ^                     */
+          /* BPOS      :          ^                       */
+
+          /* CHGVAR     VAR(&OMITDATES) +                           */
+          /*              VALUE('2017-01-26,2017-02-01,2017-10-04') */
+
+             /* SNDPGMMSG  ('ORIGINAL SUMMARY:') */
+             /* SNDPGMMSG  ('                                       ') */
+             /* SNDPGMMSG  (' OMITDATES: ' *CAT       &OMITDATES )  */
+             CHGVAR     VAR(&VARLEN) VALUE(%LEN(&OMITDATES))
+             /* SNDPGMMSG  ('                                       ') */
+             /* SNDPGMMSG  MSG('----- REPLACE , TO SPACE START -----') */
+             CHGVAR     VAR(&POS) VALUE(%SCAN(',' &OMITDATES))
+             /* SNDPGMMSG  ('       POS: ' *CAT %CHAR(&POS   )) */
+             IF         COND(%SST(&OMITDATES 11 10) *NE '         ') +
+                          THEN(DO)
+             IF         COND(&POS > 0) THEN(DO)
+
+             DOUNTIL    COND(&POS *EQ 0)
+             CHGVAR     VAR(&BPOS) VALUE(&POS - 1)
+             CHGVAR     VAR(&BSTR) VALUE(%SST(&OMITDATES 1 &BPOS))
+                           /* SNDPGMMSG  ('      BSTR: ' *CAT       &BSTR  ) */
+             CVTDAT     DATE(&BSTR) TOVAR(&BSTR) FROMFMT(*ISO) +
+                          TOFMT(*YMD) TOSEP(*NONE)
+             CHGVAR     VAR(&TOMITDAT) VALUE(%TRIM(&TOMITDAT) *BCAT +
+                          %TRIM(&BSTR))
+
+             CHGVAR     VAR(&APOS) VALUE(&POS + 1)
+             CHGVAR     VAR(&AENDPOS) VALUE(&VARLEN - &APOS + 1)
+             CHGVAR     VAR(&ASTR) VALUE(%SST(&OMITDATES &APOS +
+                          &AENDPOS))
+             CHGVAR     VAR(&OMITDATES) VALUE(&ASTR)
+             CHGVAR     VAR(&POS) VALUE(%SCAN(',' &OMITDATES))
+             ENDDO
+             CHGVAR     VAR(&ASTR) VALUE(%SST(&ASTR 1 10))
+             CVTDAT     DATE(&ASTR) TOVAR(&ASTREND) FROMFMT(*ISO) +
+                          TOFMT(*YMD) TOSEP(*NONE)
+             CHGVAR     VAR(&TOMITDAT) VALUE(%TRIM(&TOMITDAT) *BCAT +
+                          %TRIM(&ASTREND))
+                        /* SNDPGMMSG  ('  TOMITDAT: ' *CAT       &TOMITDAT) */
+             ENDDO
+             ENDDO
+             ELSE       CMD(DO)
+             CVTDAT     DATE(&OMITDATES) TOVAR(&TOMITDAT) +
+                          FROMFMT(*ISO) TOFMT(*YMD) TOSEP(*NONE)
+               /* SNDPGMMSG  MSG('----- REPLACE , TO SPACE END -----') */
+             ENDDO
+
+             ENDPGM

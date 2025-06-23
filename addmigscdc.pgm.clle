@@ -1,0 +1,230 @@
+             PGM
+             DCLF       FILE(DDSCINFO/SCDJOBINF) ALWVARLEN(*YES) +
+                          ALWNULL(*YES)
+             DCL        VAR(&CMD) TYPE(*CHAR) LEN(512)
+             DCL        VAR(&CMDLEN) TYPE(*DEC) LEN(3 0)
+             DCL        VAR(&VARLEN) TYPE(*DEC) LEN(3 0)
+             DCL        VAR(&BSTR) TYPE(*CHAR) LEN(219)
+             DCL        VAR(&ASTR) TYPE(*CHAR) LEN(219)
+             DCL        VAR(&BPOS) TYPE(*DEC) LEN(3 0)
+             DCL        VAR(&APOS) TYPE(*DEC) LEN(3 0)
+             DCL        VAR(&AENDPOS) TYPE(*DEC) LEN(3 0)
+             DCL        VAR(&POS) TYPE(*DEC) LEN(3 0)
+             DCL        VAR(&TOMITDAT) TYPE(*CHAR) LEN(230)
+             DCL        VAR(&SCDTIMEC) TYPE(*CHAR) LEN(8)
+             DCL        VAR(&H) TYPE(*CHAR) LEN(2)
+             DCL        VAR(&M) TYPE(*CHAR) LEN(2)
+             DCL        VAR(&S) TYPE(*CHAR) LEN(2)
+             DCL        VAR(&JDPARM) TYPE(*CHAR) LEN(22)
+             DCL        VAR(&JQPARM) TYPE(*CHAR) LEN(22)
+             DCL        VAR(&MQPARM) TYPE(*CHAR) LEN(22)
+
+ BEG:        RCVF
+
+             MONMSG     MSGID(CPF0864) EXEC(GOTO CMDLBL(EOF))
+             SNDPGMMSG  MSG('----- SCHEDULED JOB ENTRY PROCESS +
+                          BEGIN! -----')
+
+          /* SCDJOBNAME */
+             CHGVAR     VAR(&VARLEN) VALUE(%LEN(&SCDJOBNAME))
+             CHGVAR     VAR(&VARLEN) VALUE(&VARLEN - 2)
+             CHGVAR     VAR(&SCDJOBNAME) VALUE(%SST(&SCDJOBNAME 3 +
+                          &VARLEN))
+
+          /* RELDAYSMON */
+             CHGVAR     VAR(&VARLEN) VALUE(%LEN(&RELDAYSMON))
+             CHGVAR     VAR(&VARLEN) VALUE(&VARLEN - 2)
+             CHGVAR     VAR(&RELDAYSMON) VALUE(%SST(&RELDAYSMON 3 +
+                          &VARLEN))
+             SNDPGMMSG  MSG(&RELDAYSMON)
+
+          /* JOBQLIB & JOBQ*/
+             CHGVAR     VAR(&VARLEN) VALUE(%LEN(&JOBQLIB))
+             CHGVAR     VAR(&VARLEN) VALUE(%LEN(&JOBQ))
+             CHGVAR     VAR(&VARLEN) VALUE(&VARLEN -2)
+             CHGVAR     VAR(&JOBQLIB) VALUE(%SST(&JOBQLIB 3 &VARLEN))
+             CHGVAR     VAR(&JOBQ) VALUE(%SST(&JOBQ 3 &VARLEN))
+             IF         COND(%SST(&JOBQLIB 1 1) *EQ ' ') THEN(DO)
+             CHGVAR     VAR(&JQPARM) VALUE(&JOBQ)
+             ENDDO
+             ELSE       CMD(DO)
+             CHGVAR     VAR(&JQPARM) VALUE(&JOBQLIB *TCAT '/' *TCAT +
+                          &JOBQ)
+             ENDDO
+
+          /* MSGQLIB & MSGQ */
+             CHGVAR     VAR(&VARLEN) VALUE(%LEN(&MSGQLIB))
+             CHGVAR     VAR(&VARLEN) VALUE(%LEN(&MSGQ))
+             CHGVAR     VAR(&VARLEN) VALUE(&VARLEN -2)
+             CHGVAR     VAR(&MSGQLIB) VALUE(%SST(&MSGQLIB 3 &VARLEN))
+             CHGVAR     VAR(&MSGQ) VALUE(%SST(&MSGQ 3 &VARLEN))
+             IF         COND(%SST(&MSGQLIB 1 1) *EQ ' ') THEN(DO)
+             CHGVAR     VAR(&MQPARM) VALUE(&MSGQ)
+             ENDDO
+             ELSE       CMD(DO)
+             CHGVAR     VAR(&MQPARM) VALUE(&MSGQLIB *TCAT '/' *TCAT +
+                          &MSGQ)
+             ENDDO
+
+          /* JOBDLIB & JOBD */
+             CHGVAR     VAR(&VARLEN) VALUE(%LEN(&JOBDLIB))
+             CHGVAR     VAR(&VARLEN) VALUE(%LEN(&JOBD))
+             CHGVAR     VAR(&VARLEN) VALUE(&VARLEN -2)
+             CHGVAR     VAR(&JOBDLIB) VALUE(%SST(&JOBDLIB 3 &VARLEN))
+             CHGVAR     VAR(&JOBD) VALUE(%SST(&JOBD 3 &VARLEN))
+             IF         COND(%SST(&JOBDLIB 1 1) *EQ ' ') THEN(DO)
+             CHGVAR     VAR(&JDPARM) VALUE(&JOBD)
+             ENDDO
+             ELSE       CMD(DO)
+             CHGVAR     VAR(&JDPARM) VALUE(&JOBDLIB *TCAT '/' *TCAT +
+                          &JOBD)
+             ENDDO
+
+          /* OMITDATES - INITIAL */
+             CHGVAR     VAR(&TOMITDAT) VALUE(' ')
+
+          /* OMITDATES */
+             CHGVAR     VAR(&VARLEN) VALUE(%LEN(&OMITDATES))
+             CHGVAR     VAR(&VARLEN) VALUE(&VARLEN -2)
+             CHGVAR     VAR(&OMITDATES) VALUE(%SST(&OMITDATES 3 &VARLEN))
+             /* SNDPGMMSG  ('OMIT DATES : ' *CAT &OMITDATES) */
+             IF         COND(%SST(&OMITDATES 1 10) *NE '         ') +
+                          THEN(DO)
+             CALL       PGM(*LIBL/CALCPOS) PARM((&OMITDATES) +
+                          (&TOMITDAT))
+             ENDDO
+             /* SNDPGMMSG  ('RETURN OMIT: ' *CAT &TOMITDAT) */
+
+          /* TEXT */
+             CHGVAR     VAR(&VARLEN) VALUE(%LEN(&TEXT))
+             CHGVAR     VAR(&VARLEN) VALUE(&VARLEN -2)
+             CHGVAR     VAR(&TEXT) VALUE(%SST(&TEXT 3 &VARLEN))
+
+          /* SCDDATEV */
+             CHGVAR     VAR(&VARLEN) VALUE(%LEN(&SCDDATEV))
+             CHGVAR     VAR(&VARLEN) VALUE(&VARLEN -2)
+             CHGVAR     VAR(&SCDDATEV) VALUE(%SST(&SCDDATEV 3 +
+                          &VARLEN))
+
+          /* FREQUENCY */
+             CHGVAR     VAR(&VARLEN) VALUE(%LEN(&FREQUENCY))
+             CHGVAR     VAR(&VARLEN) VALUE(&VARLEN -2)
+             CHGVAR     VAR(&FREQUENCY) VALUE(%SST(&FREQUENCY 3 +
+                          &VARLEN))
+             /* SNDPGMMSG ('PROCESS FREQUENCY: ' *CAT &FREQUENCY) */
+
+          /* SBMJOBUSR */
+             CHGVAR     VAR(&VARLEN) VALUE(%LEN(&SBMJOBUSR))
+             CHGVAR     VAR(&VARLEN) VALUE(&VARLEN -2)
+             CHGVAR     VAR(&SBMJOBUSR) VALUE(%SST(&SBMJOBUSR 3 +
+                          &VARLEN))
+
+          /* RECOVERY */
+             CHGVAR     VAR(&VARLEN) VALUE(%LEN(&RECOVERY))
+             CHGVAR     VAR(&VARLEN) VALUE(&VARLEN -2)
+             CHGVAR     VAR(&RECOVERY) VALUE(%SST(&RECOVERY 3 +
+                          &VARLEN))
+
+          /* SCDTIME */
+             CHGVAR     VAR(&VARLEN) VALUE(%LEN(&SCDTIME))
+             CHGVAR     VAR(&SCDTIMEC) VALUE(&SCDTIME)
+             CHGVAR     VAR(&H) VALUE(%SST(&SCDTIME 1 2))
+             CHGVAR     VAR(&M) VALUE(%SST(&SCDTIME 4 2))
+             CHGVAR     VAR(&S) VALUE(%SST(&SCDTIME 7 2))
+             CHGVAR     VAR(&SCDTIMEC) VALUE(&H *TCAT &M *TCAT &S)
+
+         /* SCDDATE */
+             CHGVAR     VAR(&VARLEN) VALUE(%LEN(&SCDDATE))
+             CHGVAR     VAR(&VARLEN) VALUE(&VARLEN -2)
+             CHGVAR     VAR(&SCDDATE) VALUE(%SST(&SCDDATE 3 +
+                          &VARLEN))
+             CVTDAT     DATE(&SCDDATE) TOVAR(&SCDDATE)  +
+                          TOFMT(*YMD) TOSEP(*NONE)
+             IF         COND(&SCDDATEV *EQ 'SCHEDULED_DAYS') THEN(DO)
+             CHGVAR     VAR(&SCDDATE) VALUE('*NONE')
+             ENDDO
+
+         /* SCDDAYS */
+             CHGVAR     VAR(&VARLEN) VALUE(%LEN(&SCDDAYS))
+             CHGVAR     VAR(&VARLEN) VALUE(&VARLEN - 2)
+             CHGVAR     VAR(&SCDDAYS) VALUE(%SST(&SCDDAYS 3 +
+                          &VARLEN))
+             CHGVAR     VAR(&POS) VALUE(0)
+             IF         COND(%SST(&SCDDAYS 1 4) *EQ '*ALL') THEN(DO)
+             CHGVAR     VAR(&FREQUENCY) VALUE('*WEEKLY')
+             ENDDO
+             ELSE       CMD(IF COND(%SST(&SCDDAYS 1 1) *EQ ' ') +
+                          THEN(DO))
+             CHGVAR     VAR(&FREQUENCY) VALUE('*ONCE')
+             ENDDO
+             ELSE       CMD(DO)
+             CHGVAR     VAR(&POS) VALUE(%SCAN(',' &SCDDAYS))
+             /* SNDPGMMSG  ('SCDDAYS: ' *CAT &SCDDAYS *CAT '. POSITION: ' *CAT %CHAR(&POS)) */
+             IF         COND(&POS > 0) THEN(DO)
+             DOUNTIL    COND(&POS *EQ 0)
+             CHGVAR     VAR(&BPOS) VALUE(&POS - 1)
+             CHGVAR     VAR(&BSTR) VALUE(%SST(&SCDDAYS 1 &BPOS))
+             CHGVAR     VAR(&APOS) VALUE(&POS + 1)
+             CHGVAR     VAR(&AENDPOS) VALUE(&VARLEN - &APOS + 1)
+             CHGVAR     VAR(&ASTR) VALUE(%SST(&SCDDAYS &APOS &AENDPOS))
+             CHGVAR     VAR(&SCDDAYS) VALUE(%TRIM(&BSTR) *BCAT %TRIM(&ASTR))
+             CHGVAR     VAR(&POS) VALUE(%SCAN(',' &SCDDAYS))
+             ENDDO
+             CHGVAR     VAR(&SCDDAYS) VALUE(&SCDDAYS)
+             ENDDO
+             ENDDO
+
+          /* KEEP */
+             CHGVAR     VAR(&VARLEN) VALUE(%LEN(&KEEP))
+             CHGVAR     VAR(&VARLEN) VALUE(&VARLEN -2)
+             CHGVAR     VAR(&KEEP) VALUE(%SST(&KEEP 3 +
+                          &VARLEN))
+
+             IF         COND(&KEEP *EQ 'NO') THEN(DO)
+             CHGVAR     VAR(&KEEP) VALUE('*NO')
+             ENDDO
+             ELSE       CMD(IF COND(&KEEP *EQ '*YES') THEN(DO))
+             CHGVAR     VAR(&KEEP) VALUE('*YES')
+             ENDDO
+             ELSE       CMD(DO)
+             CHGVAR     VAR(&KEEP) VALUE(' ')
+             ENDDO
+
+          /* PROCESS COMMAND STRING BEGIN */
+             CHGVAR     VAR(&CMDLEN) VALUE(%LEN(&COMMAND))
+             CHGVAR     VAR(&CMDLEN) VALUE(&CMDLEN - 2)
+             CHGVAR     VAR(&COMMAND) VALUE(%SST(&COMMAND 3 &CMDLEN))
+
+             CHGVAR  VAR(&CMD) VALUE('ADDJOBSCDE +
+               JOB(' *TCAT &SCDJOBNAME *TCAT ') +
+               CMD(' *TCAT &COMMAND *TCAT ') +
+               FRQ(' *TCAT &FREQUENCY *TCAT ') +
+               SCDDATE(' *TCAT &SCDDATE *TCAT ') +
+               SCDDAY(' *TCAT &SCDDAYS *TCAT ') +
+               SCDTIME(' *TCAT &SCDTIMEC *TCAT ') +
+               RELDAYMON(' *TCAT &RELDAYSMON *TCAT ') +
+               SAVE(' *TCAT &KEEP *TCAT ') +
+               OMITDATE(' *TCAT &TOMITDAT *TCAT ') +
+               RCYACN(' *TCAT &RECOVERY *TCAT ') +
+               JOBD(' *TCAT &JDPARM *TCAT ') +
+               JOBQ(' *TCAT &JQPARM *TCAT ') +
+               USER(' *TCAT &SBMJOBUSR *TCAT ') +
+               MSGQ(' *TCAT &MQPARM *TCAT ') +
+               TEXT(''' *TCAT &TEXT *TCAT ''')')
+
+             CHGVAR     VAR(&CMD) VALUE(%TRIM(&CMD))
+             CALL       PGM(QCMDCHK) PARM((&CMD) (512))
+             MONMSG     MSGID(CPF0006) EXEC(SNDPGMMSG MSG(&CMD))
+             CALL       PGM(QCMDEXC) PARM((&CMD) (512))
+             MONMSG     MSGID(CPF0006 CPF1633) EXEC(SNDPGMMSG +
+                          MSG(&CMD))
+             /* SNDPGMMSG  ('CMD: ' *CAT &CMD) */
+             SNDPGMMSG  MSG('----- SCHEDULED JOB ENTRY PROCESS +
+                          FINISHED. -----')
+          /* PROCESS COMMAND STRING END */
+
+ NEXT:       GOTO       CMDLBL(BEG)
+ EOF:     /* CALL       PGM(STEVE/RMVMIGSCDC) */
+             WRKJOBSCDE
+             SNDPGMMSG  MSG('PROGRAM FINISHED!')
+             ENDPGM
