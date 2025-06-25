@@ -46,9 +46,8 @@ dcl-s new_ctlnm char(10);
 exec sql 
   values current server into :cur_sysnm;
 
-
 // 取得新機主機名稱
-new_sysnm = 'AS101N' ;
+new_sysnm = 'KSF03N' ;
 // FOR_KGI : new_sysnm = cur_sysnm ; 
 
 // 取得原機主機名稱
@@ -78,15 +77,13 @@ exec sql
 // 取得原機要修改的原機 ctld name
 org_ctlnm = 'TCP' + org_sysnm ;
 // 取得原機要刪除的新機 ctld name
-new_ctlnm = %trimr(org_ctlnm) + 'N' ;
+new_ctlnm = org_ctlnm + 'N' ;
 
 snd-msg '--------------------------------------';
 snd-msg '   New System Name     : ' + new_sysnm ;
 snd-msg '   Original System Name: ' + org_sysnm ;
 snd-msg '   New      IP address : ' + new_ip    ;
 snd-msg '   Original IP address : ' + org_ip    ;
-snd-msg '   New         ctlname : ' + new_ctlnm ;
-snd-msg '   Original    ctlname : ' + org_ctlnm ;
 snd-msg '--------------------------------------';
 
 exec sql
@@ -210,30 +207,16 @@ exec sql
                           :cfgtbl.rmtcpname ;
 
 snd-msg '--------------------------------------';
-snd-msg '* Target_system: ' + %trim(org_sysnm);
+snd-msg 'Target-System: ' + %trim(org_sysnm);
+snd-msg 'Remote-CTLD  : ' + org_ctlnm;
 snd-msg '--------------------------------------';
-
-// delete new ctld 
-Incmdstr = '''DLTCTLD CTLD(' + %trim(new_ctlnm) + ')''' ; 
-cmdstr = 'RUNRMTCMD CMD(' + %trim(Incmdstr) + ') ' + 
-       'RMTLOCNAME(' + %trim(rmtsys) + ' *IP) ' + 
-       'RMTUSER(' + %trim(usrvar) + ') ' + 
-       'RMTPWD(' + %trim(pwdvar) + ')' ;
-snd-msg Incmdstr ;
-// snd-msg cmdstr ;
-  // returnCode = syscmd(cmdstr);
-  // If ReturnCode <> 0;
-  //   snd-msg 'Command   : ' + cmdstr ;
-  //   snd-msg 'returnCode: ' + %char(returnCode) ;
-  //   *inlr = *on ;
-  //   return ;
-  // endif;
-
+RemoteCommand(org_sysnm : org_ctlnm);
 
 dow sqlcod = 0 ;
   if sqlcod = 0 ;
     snd-msg '--------------------------------------';
-    snd-msg '** Target-System: ' + %trim(cfgtbl.rmtcpname);
+    snd-msg 'Target-System: ' + %trim(cfgtbl.rmtcpname);
+    snd-msg 'Remote-CTLD  : ' + org_ctlnm;
     snd-msg '--------------------------------------';
     RemoteCommand(%trim(cfgtbl.rmtcpname) : org_ctlnm);
   elseif sqlcod = 100;
@@ -273,7 +256,7 @@ dcl-proc RemoteCommand ;
               'RMTLOCNAME(' + %trim(rmtsys) + ' *IP) ' +
               'RMTUSER(' + %trim(usrvar) + ') ' + 
               'RMTPWD(' + %trim(pwdvar) + ')' ;
-  snd-msg Incmdstr ;
+  // snd-msg cmdstr ;
   // returnCode = syscmd(cmdstr);
   // If ReturnCode <> 0;
   //   snd-msg 'Command   : ' + cmdstr ;
@@ -289,7 +272,6 @@ dcl-proc RemoteCommand ;
            'RMTLOCNAME(' + %trim(rmtsys) + ' *IP) ' + 
            'RMTUSER(' + %trim(usrvar) + ') ' + 
            'RMTPWD(' + %trim(pwdvar) + ')' ;
-  snd-msg Incmdstr ;
   // snd-msg cmdstr ;
   // returnCode = syscmd(cmdstr);
   // If ReturnCode <> 0;
@@ -299,7 +281,7 @@ dcl-proc RemoteCommand ;
   //   return ;
   // endif;  
 
-  // Vary off original ctld
+  // Vary off remote ctld
   // Requirements : CFGOBJ = TCP + 原機主機名稱
   Incmdstr = '''VRYCFG CFGOBJ(' + %trim(org_ctlnm) + 
            ') CFGTYPE(*CTL) STATUS(*OFF) FRCVRYOFF(*YES)''' ;
@@ -307,7 +289,6 @@ dcl-proc RemoteCommand ;
            'RMTLOCNAME(' + %trim(rmtsys) + ' *IP) ' + 
            'RMTUSER(' + %trim(usrvar) + ') ' + 
            'RMTPWD(' + %trim(pwdvar) + ')' ;
-  snd-msg Incmdstr ;
   // snd-msg cmdstr ;
   // returnCode = syscmd(cmdstr);
   // If ReturnCode <> 0;
@@ -317,14 +298,14 @@ dcl-proc RemoteCommand ;
   //   return ;
   // endif; 
 
-  // Vary on original ctld 
+  // Vary on remote ctld 
   Incmdstr = '''VRYCFG CFGOBJ(' + %trim(org_ctlnm) + 
            ') CFGTYPE(*CTL) STATUS(*ON)''' ;
+  if %subst(cfgtbl.ctld : 1 : 3) = 'TCP' ;
   cmdstr = 'RUNRMTCMD CMD(' + %trim(Incmdstr) + ') ' + 
-         'RMTLOCNAME(' + %trim(rmtsys) + ' *IP) ' + 
-         'RMTUSER(' + %trim(usrvar) + ') ' + 
-         'RMTPWD(' + %trim(pwdvar) + ')' ;
-  snd-msg Incmdstr ;
+           'RMTLOCNAME(' + %trim(rmtsys) + ' *IP) ' + 
+           'RMTUSER(' + %trim(usrvar) + ') ' + 
+           'RMTPWD(' + %trim(pwdvar) + ')' ;
   // snd-msg cmdstr ;
     // returnCode = syscmd(cmdstr);
     // If ReturnCode <> 0;
@@ -333,7 +314,10 @@ dcl-proc RemoteCommand ;
     //   *inlr = *on ;
     //   return ;
     // endif;
-end-proc;
+  endif; 
+
+  end-proc;
+
 
 dcl-proc ProcessCommand;
   dcl-pi ProcessCommand;
@@ -411,6 +395,11 @@ dcl-proc ProcessCommand;
       exec sql
             INSERT INTO qtemp.cfgtbl (CTLD, LINKTYPE, RMTINTNETA, LCLINTNETA, RMTCPNAME)
             VALUES (:cfgtbl.ctld, :cfgtbl.linktype, :cfgtbl.rmtintneta, :cfgtbl.lclintneta, :cfgtbl.rmtcpname);
+      // if sqlcod <> 0;
+      //   snd-msg ('SQL INSERT Error! SQLCOD: ' + %char(sqlcod));
+      // else;
+      //   snd-msg ('SQL INSERT Successful.');
+      // endif;
     endif;
   endif;
 end-proc;
