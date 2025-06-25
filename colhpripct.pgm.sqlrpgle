@@ -41,6 +41,8 @@ dcl-s new_sysnm char(8);
 dcl-s new_ip char(15);
 dcl-s org_ctlnm char(10);
 dcl-s new_ctlnm char(10);
+dcl-s new_hostnme1 char(50);
+dcl-s new_hostnme2 char(50);
 
 // 取得現行主機名稱
 exec sql 
@@ -48,7 +50,7 @@ exec sql
 
 
 // 取得新機主機名稱
-new_sysnm = 'AS101N' ;
+new_sysnm = 'AS081N' ;
 // FOR_KGI : new_sysnm = cur_sysnm ; 
 
 // 取得原機主機名稱
@@ -68,17 +70,21 @@ exec sql
 
 // 取得新機 IP 位址
 exec sql 
-  select internet 
+  select internet_address
   into   :new_ip
-  from qusrsys.qatochost
-  where hostnme1 = :new_sysnm or 
-        hostnme2 = :new_sysnm 
+  from qsys2.netstat_interface_info 
+  where line_description = '*VIRTUALIP' and 
+  internet_address like '%10.102%'
+  order by internet_address 
   fetch first 1 rows only;
-
-// 取得原機要修改的原機 ctld name
+  
+// 組成要修改的原機 ctld name
 org_ctlnm = 'TCP' + org_sysnm ;
-// 取得原機要刪除的新機 ctld name
+// 組成要刪除的新機 ctld name
 new_ctlnm = %trimr(org_ctlnm) + 'N' ;
+// 組成要新增的原機 host table entry
+new_hostnme1 = %trimr(org_sysnm) ;
+new_hostnme2 = %trimr(org_sysnm) + '.APPN.SNA.IBM.COM' ;
 
 snd-msg '--------------------------------------';
 snd-msg '   New System Name     : ' + new_sysnm ;
@@ -209,26 +215,9 @@ exec sql
                           :cfgtbl.rmtintneta,
                           :cfgtbl.rmtcpname ;
 
-snd-msg '--------------------------------------';
-snd-msg '* Target_system: ' + %trim(org_sysnm);
-snd-msg '--------------------------------------';
-
-// delete new ctld 
-Incmdstr = '''DLTCTLD CTLD(' + %trim(new_ctlnm) + ')''' ; 
-cmdstr = 'RUNRMTCMD CMD(' + %trim(Incmdstr) + ') ' + 
-       'RMTLOCNAME(' + %trim(rmtsys) + ' *IP) ' + 
-       'RMTUSER(' + %trim(usrvar) + ') ' + 
-       'RMTPWD(' + %trim(pwdvar) + ')' ;
-snd-msg Incmdstr ;
-// snd-msg cmdstr ;
-  // returnCode = syscmd(cmdstr);
-  // If ReturnCode <> 0;
-  //   snd-msg 'Command   : ' + cmdstr ;
-  //   snd-msg 'returnCode: ' + %char(returnCode) ;
-  //   *inlr = *on ;
-  //   return ;
-  // endif;
-
+// snd-msg '--------------------------------------';
+// snd-msg '* Target_system: ' + %trim(org_sysnm);
+// snd-msg '--------------------------------------';
 
 dow sqlcod = 0 ;
   if sqlcod = 0 ;
@@ -265,7 +254,60 @@ dcl-proc RemoteCommand ;
   dcl-s pwdvar char(15) inz('IBMECSUSR');
   dcl-s cmdstr varchar(512) inz;
   dcl-s Incmdstr varchar(512) inz;
+  
+  if rmtsys = org_sysnm ;
+    // Remove remote Host table entries
+    // Required : new server ip address
+    Incmdstr = '''RMVTCPHTE INTNETADR(''' + %trim(new_ip) + ''')''';
+    cmdstr = 'RUNRMTCMD CMD(' + %trim(Incmdstr) + ') ' + 
+                'RMTLOCNAME(' + %trim(rmtsys) + ' *IP) ' +
+                'RMTUSER(' + %trim(usrvar) + ') ' + 
+                'RMTPWD(' + %trim(pwdvar) + ')' ;
+    snd-msg Incmdstr ;
+    // returnCode = syscmd(cmdstr);
+    // If ReturnCode <> 0;
+    //   snd-msg 'Command   : ' + cmdstr ;
+    //   snd-msg 'returnCode: ' + %char(returnCode) ;
+    //   *inlr = *on ;
+    //   return ;
+    // endif; 
 
+    // Vary off new ctld
+    // Required : new ctld name
+    Incmdstr = '''VRYCFG CFGOBJ(' + %trim(new_ctlnm) + 
+             ') CFGTYPE(*CTL) STATUS(*OFF) FRCVRYOFF(*YES)''' ;
+    cmdstr = 'RUNRMTCMD CMD(' + %trim(Incmdstr) + ') ' + 
+             'RMTLOCNAME(' + %trim(rmtsys) + ' *IP) ' + 
+             'RMTUSER(' + %trim(usrvar) + ') ' + 
+             'RMTPWD(' + %trim(pwdvar) + ')' ;
+    snd-msg Incmdstr ;
+    // snd-msg cmdstr ;
+    // returnCode = syscmd(cmdstr);
+    // If ReturnCode <> 0;
+    //   snd-msg 'Command   : ' + cmdstr ;
+    //   snd-msg 'returnCode: ' + %char(returnCode) ;
+    //   *inlr = *on ;
+    //   return ;
+    // endif; 
+
+    // delete new ctld
+    // Required : new ctld name 
+    Incmdstr = '''DLTCTLD CTLD(' + %trim(new_ctlnm) + ')''' ; 
+    cmdstr = 'RUNRMTCMD CMD(' + %trim(Incmdstr) + ') ' + 
+           'RMTLOCNAME(' + %trim(rmtsys) + ' *IP) ' + 
+           'RMTUSER(' + %trim(usrvar) + ') ' + 
+           'RMTPWD(' + %trim(pwdvar) + ')' ;
+    snd-msg Incmdstr ;
+    // snd-msg cmdstr ;
+    // returnCode = syscmd(cmdstr);
+    // If ReturnCode <> 0;
+    //   snd-msg 'Command   : ' + cmdstr ;
+    //   snd-msg 'returnCode: ' + %char(returnCode) ;
+    //   *inlr = *on ;
+    //   return ;
+    // endif;
+  endif;
+  
   // Remove remote Host table entries
   // Requirements : 原機 IP 位址 ( org_ip )
   Incmdstr = '''RMVTCPHTE INTNETADR(''' + %trim(org_ip) + ''')''';
@@ -284,7 +326,9 @@ dcl-proc RemoteCommand ;
 
   // Add new Host table entries
   // Requirements : 原機 IP 位址 ( new_ip )
-  Incmdstr = '''ADDTCPHTE INTNETADR(''' + %trim(new_ip) + ''')''';
+  Incmdstr = '''ADDTCPHTE INTNETADR(''' + %trimr(new_ip) + ''')' + 
+             ' HOSTNAME((' + %trimr(new_hostnme1) + 
+             ')' + '(' + %trimr(new_hostnme2) + '))''';
   cmdstr = 'RUNRMTCMD CMD(' + %trim(Incmdstr) + ') ' + 
            'RMTLOCNAME(' + %trim(rmtsys) + ' *IP) ' + 
            'RMTUSER(' + %trim(usrvar) + ') ' + 
