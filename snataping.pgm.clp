@@ -1,0 +1,17 @@
+/* Required : Remote location name */ 
+PGM PARM(&RMTLOCNM)
+
+DCL VAR(&RMTLOCNM) TYPE(*CHAR) LEN(10) 
+
+APING RMTLOCNAME(&RMTLOCNM) MSGMODE(*QUIET)
+MONMSG MSGID(CPC0000 CPF0000) EXEC(DO)
+
+
+SNDPGMMSG MSG('Command did not complete successfully.')
+ENDDO
+
+
+
+
+
+ENDPGM
