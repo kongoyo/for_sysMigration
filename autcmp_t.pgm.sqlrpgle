@@ -295,13 +295,13 @@ dcl-proc find_chg_objaut;
       
         exec sql open cur_c1;
       
-        exec sql fetch from cur_c1 into :system_object_schema,
-                                        :system_object_name,
-                                        :object_type,
+        exec sql fetch from cur_c1 into :system_object_schema,          // Library
+                                        :system_object_name,            // Object
+                                        :object_type,                   // object_type
                                         :authorization_name,            // user_profile
                                         :object_authority,              // object_authority
                                         :owner,                         // object_owner
-                                        :primary_group :prigrp_Nul,            // object_group_name
+                                        :primary_group :prigrp_Nul,     // object_group_name
                                         :object_operational,            // operational
                                         :object_management,             // object_management
                                         :object_existence,              // object_exist
