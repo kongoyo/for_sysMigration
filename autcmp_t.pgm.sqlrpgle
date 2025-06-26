@@ -149,7 +149,7 @@ dcl-proc find_chg_objaut;
   dcl-s srcobnm char(10);
   dcl-s srclbob char(21);
 
-// from_file
+  // from_file
   dcl-s oalib  char(10);  // Library
   dcl-s oaname char(10);  // Object
   dcl-s oatype char(8);   // Object_type
@@ -173,7 +173,7 @@ dcl-proc find_chg_objaut;
 
   dcl-s stmt varchar(512);
 
-// from_current_object
+  // from_current_object
   dcl-s system_object_schema varchar(10); // Library
   dcl-s system_object_name  varchar(10);  // Object
   dcl-s object_type         varchar(8);   // Object_type
