@@ -188,7 +188,7 @@ dcl-proc find_chg_objaut;
   dcl-s data_add            varchar(3);   // data_add
   dcl-s data_update         varchar(3);   // data_update
   dcl-s data_delete         varchar(3);   // data_delete
-  dcl-s autl_mgmt           varchar(3);   // auth_list_mgmt
+  dcl-s authorization_list_management           varchar(3);   // auth_list_mgmt
   dcl-s authorization_list  varchar(10);  // auth_list_name
   dcl-s data_execute        varchar(3);   // data_execute
   dcl-s object_alter        varchar(3);   // object_alter
@@ -258,7 +258,6 @@ dcl-proc find_chg_objaut;
 
     if sqlcod = 0;
 
-      // *** important ***
       if %trim(oausr) = '*GROUP';
         oausr = %trim(oagrpn);
       endif;
@@ -333,7 +332,7 @@ dcl-proc find_chg_objaut;
                   :authorization_name, :object_authority, :owner, 
                   :primary_group,  
                   :object_operational, :object_management, :object_existence,
-                  :data_read, :data_add, :data_update, :autl_mgmt, 
+                  :data_read, :data_add, :data_update, :authorization_list_management, 
                   :authorization_list,
                   :data_delete, :data_execute, :object_alter, :object_reference, :object_owner
           From qsys2.object_privileges
@@ -344,12 +343,13 @@ dcl-proc find_chg_objaut;
       
       // snd-msg 'from_curr sqlcod : ' + %char(sqlcod);
       if sqlcod = 0;
-        snd-msg '*** From : ' + %trim(save_volume) + ' ***'; 
-        snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) + 
-                '/' + %trim(oausr) + '.';
-        snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) + 
-                  '/' + %trim(authorization_name) + '.';
-        if %trim(oausr) = '*PUBLIC' and %trim(owner) <> %trim(oaown);
+        if (%trim(oausr) = '*PUBLIC' and %trim(owner) <> %trim(oaown));
+          snd-msg '*** From : ' + %trim(save_volume) + ' ***'; 
+          snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) + 
+                  '/' + %trim(oausr) + '.';
+          snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) + 
+                    '/' + %trim(authorization_name) + '.';
+
           snd-msg '  ----- Owner diff -----';
           snd-msg '  from_file: ' + %trim(oaown) + '.';
           snd-msg '  from_curr: ' + %trim(owner) + '.';        
@@ -362,11 +362,22 @@ dcl-proc find_chg_objaut;
           //   snd-msg 'sqlcod: ' + %char(sqlcod);
           //   snd-msg 'Change object owner error.';
           // endif;
+        else;
+          snd-msg 'Owner diff unexpected error.';
         endif;
-        if %trim(oausr) = '*PUBLIC' and %trim(authorization_list) <> %trim(oaanam);
+
+          snd-msg '  from_file(before): ' + %trim(oaanam) + '.';
+          snd-msg '  from_curr(before): ' + %trim(authorization_list) + '.';
+        if (%trim(oausr) = '*PUBLIC' and %trim(authorization_list) <> %trim(oaanam));
+          snd-msg '*** From : ' + %trim(save_volume) + ' ***'; 
+          snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) + 
+                  '/' + %trim(oausr) + '.';
+          snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) + 
+                    '/' + %trim(authorization_name) + '.';
+
           snd-msg '  ----- Authority List diff -----';
-          snd-msg '  from_file: ' + %trim(oaanam) + '.';
-          snd-msg '  from_curr: ' + %trim(authorization_list) + '.';
+          snd-msg '  from_file(after): ' + %trim(oaanam) + '.';
+          snd-msg '  from_curr(after): ' + %trim(authorization_list) + '.';
           cmdstr =  'GRTOBJAUT OBJ(' + %trim(objlib) + '/' +
                     %trim(objname) + ') OBJTYPE(' + %trim(objtype) +
                     ') AUTL(' + %trim(oaanam) + ')' ;
@@ -376,11 +387,25 @@ dcl-proc find_chg_objaut;
           //   snd-msg 'sqlcod: ' + %char(sqlcod);
           //   snd-msg 'Change object owner error.';
           // endif;
+        else;
+          snd-msg 'Authority List diff unexpected error.';
+          snd-msg '  from_file(error): ' + %trim(oaanam) + '.';
+          snd-msg '  from_curr(error): ' + %trim(authorization_list) + '.';
         endif;
-        if %trim(oausr) = '*PUBLIC' and %trim(autl_mgmt) <> %trim(oaamgt);
+        
+        
+        snd-msg '  from_file(before): ' + %trim(oaamgt) + '.';
+        snd-msg '  from_curr(before): ' + %trim(authorization_list_management) + '.';
+        if (%trim(oausr) = '*PUBLIC' and %trim(authorization_list_management) <> %trim(oaamgt));
+          snd-msg '*** From : ' + %trim(save_volume) + ' ***'; 
+          snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) + 
+                  '/' + %trim(oausr) + '.';
+          snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) + 
+                    '/' + %trim(authorization_name) + '.';
+
           snd-msg '  ----- Authority List management diff -----';
-          snd-msg '  from_file: ' + %trim(oaamgt) + '.';
-          snd-msg '  from_curr: ' + %trim(autl_mgmt) + '.';
+          snd-msg '  from_file(after): ' + %trim(oaamgt) + '.';
+          snd-msg '  from_curr(after): ' + %trim(authorization_list_management) + '.';
           cmdstr =  'GRTOBJAUT OBJ(' + %trim(objlib) + '/' +
                     %trim(objname) + ') OBJTYPE(' + %trim(objtype) +
                     ') USER(*PUBLIC) AUT(*AUTL)' ;
@@ -390,8 +415,24 @@ dcl-proc find_chg_objaut;
           //   snd-msg 'sqlcod: ' + %char(sqlcod);
           //   snd-msg 'Change object owner error.';
           // endif;
+        else;
+          snd-msg 'Authority List management diff unexpected error.';        
+          snd-msg '  from_file(error): ' + %trim(oaamgt) + '.';
+          snd-msg '  from_curr(error): ' + %trim(authorization_list_management) + '.';
         endif;
-        if %trim(object_authority) <> %trim(oaobja) or 
+
+        snd-msg '  from_file(before): ' + %trim(oaobja) + '.';
+        snd-msg '  from_file(before): ' + %trim(oaopr) + '/' + %trim(oaomgt) + '/' + %trim(oaexs) + 
+                '/' + %trim(oaread) + '/' + %trim(oaadd) + '/' + %trim(oaupd) + 
+                '/' + %trim(oadlt) + '/' + %trim(oaexec) + '/' + %trim(oaalt) +
+                '/' + %trim(oaref) + '.';
+        snd-msg 'from_curr(before): ' + %trim(object_authority) + '.';
+        snd-msg 'from_curr(before): ' + %trim(object_operational) + '/' + %trim(object_management) + 
+                '/' + %trim(object_existence) + 
+                '/' + %trim(data_read) + '/' + %trim(data_add) + '/' + %trim(data_update) + 
+                '/' + %trim(data_delete) + '/' + %trim(data_execute) + '/' + %trim(object_alter) +
+                '/' + %trim(object_reference) + '.';
+        if (%trim(object_authority) <> %trim(oaobja) or 
            %trim(object_operational) <> %trim(oaopr) or
            %trim(object_management) <> %trim(oaomgt) or 
            %trim(object_existence) <> %trim(oaexs) or
@@ -401,7 +442,13 @@ dcl-proc find_chg_objaut;
            %trim(data_delete) <> %trim(oadlt) or
            %trim(data_execute) <> %trim(oaexec) or
            %trim(object_alter) <> %trim(oaalt) or
-           %trim(object_reference) <> %trim(oaref);
+           %trim(object_reference) <> %trim(oaref));
+          snd-msg '*** From : ' + %trim(save_volume) + ' ***'; 
+          snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) + 
+                  '/' + %trim(oausr) + '.';
+          snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) + 
+                    '/' + %trim(authorization_name) + '.';
+
           snd-msg '  ----- Authority diff -----';
           snd-msg '  from_file: ' + %trim(oaobja) + '.';
           snd-msg '  from_file: ' + %trim(oaopr) + '/' + %trim(oaomgt) + '/' + %trim(oaexs) + 
@@ -418,15 +465,34 @@ dcl-proc find_chg_objaut;
                                  oaopr: oaomgt: oaexs: oaread: oaadd: oaupd:
                                  oadlt: oaexec: oaalt: oaref);
           // returnCode = syscmd(cmdstr);
-          snd-msg '  cmdstr: ' + cmdstr;
+          snd-msg '  cmdstr: ' + %trim(cmdstr);
           // if returnCode <> 0;
           //   snd-msg 'sqlcod: ' + %char(sqlcod);
           //   snd-msg '--- Change object authority error ---';
           // endif;
           snd-msg '----- Record End -----';
+        else;
+          snd-msg 'Authority diff unexpected error.';
+          snd-msg '  from_file(error): ' + %trim(oaobja) + '.';
+          snd-msg '  from_file(error): ' + %trim(oaopr) + ',' + %trim(oaomgt) + ',' + 
+                                    %trim(oaexs) + ',' + %trim(oaread) + ',' + 
+                                    %trim(oaadd) + ',' + %trim(oaupd) + ',' + 
+                                    %trim(oadlt) + ',' + %trim(oaexec) + ',' +
+                                    %trim(oaalt) + ',' + %trim(oaref) + '.';
+          snd-msg '  from_curr(error): ' + %trim(object_authority) + '.';
+          snd-msg '  from_curr(error): ' + %trim(object_operational) + ',' + %trim(object_management) + ',' + 
+                                    %trim(object_existence) + ',' + %trim(data_read) + ',' + 
+                                    %trim(data_add) + ',' + %trim(data_update) + ',' + 
+                                    %trim(data_delete) + ',' + %trim(data_execute) + ',' +
+                                    %trim(object_alter) + ',' + %trim(object_reference) + '.';        
         endif;
       elseif sqlcod = 100;
-        snd-msg '*** From : ' + %trim(save_volume) + ' ***'; 
+          snd-msg '*** From : ' + %trim(save_volume) + ' ***'; 
+          snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) + 
+                  '/' + %trim(oausr) + '.';
+          snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) + 
+                    '/' + %trim(authorization_name) + '.';
+
         snd-msg '  ----- Authority missing -----';
         snd-msg '  From_file Object authority : ' + %trim(oaobja);
         snd-msg '  Object authority not found. Grant object authority. ' ;
@@ -441,7 +507,7 @@ dcl-proc find_chg_objaut;
         // endif;
         snd-msg '----- Record End -----';
       else;
-        snd-msg '  --- Unexpected error ---';
+        snd-msg '  --- Authority missing unexpected error ---';
       endif;
     endif;
 
