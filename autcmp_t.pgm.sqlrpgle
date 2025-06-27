@@ -41,7 +41,7 @@ snd-msg ' Current SysName : ' + cur_sysnm;
 snd-msg '--------------------------------------------------';
 
 // declare liblst cursor
-if exelib = '*ALL' or exelib = '*all';
+if %upper(exelib) = '*ALL';
   stmt = 'Select schema_name ' +
          'from qsys2.sysschemas ' + 
          'Where schema_name <> ''#COBLIB'' ' +
@@ -50,12 +50,12 @@ if exelib = '*ALL' or exelib = '*all';
          'And schema_name Not Like ''Q%'' ' +
          'And schema_name <> ''SYSIBM'' ' +
          'And schema_name <> ''SYSIBMADM'' ' +
-         'And schema_name <> ''SYSTOOLS'' ' +
-         'And schema_name <> ''SYSPROC'' ';
+         'And schema_name <> ''SYSPROC'' ' +
+         'And schema_name <> ''SYSTOOLS'' ';
 
 elseif exelib = '#COBLIB' or exelib = '#LIBRARY' or exelib = '#RPGLIB' or
        %subst(exelib : 1 : 1) = 'Q' or exelib = 'SYSIBM' or exelib = 'SYSIBMADM' or 
-       exelib = 'SYSTOOLS' or exelib = 'SYSPROC';
+       exelib = 'SYSPROC' or exelib = 'SYSTOOLS';
   snd-msg ' *** Please do not input System Library Name! *** ';
   *inlr = *on; 
   return;
@@ -69,68 +69,42 @@ else;
          'And schema_name Not Like ''Q%'' ' +
          'And schema_name <> ''SYSIBM'' ' +
          'And schema_name <> ''SYSIBMADM'' ' +
-         'And schema_name <> ''SYSTOOLS'' ' +
-         'And schema_name <> ''SYSPROC'' ';
+         'And schema_name <> ''SYSPROC'' ' +
+         'And schema_name <> ''SYSTOOLS'' ';
 endif;
 
 exec sql prepare preliblst from :stmt;
-
 exec sql declare liblst cursor for preliblst;
-
 exec sql open liblst;
-  
-exec sql
-  fetch from liblst into :schema_name;
-// *** Process Library List
+exec sql fetch from liblst into :schema_name;
 dow sqlcod = 0;
   if sqlcod = 0;
-    // declare objlst cursor
-    exec sql 
-      declare objlst cursor for 
-        Select cast(Coalesce(objname,'*NONE') AS char(10)) AS objname, 
-               cast(coalesce(objtype,'*NONE') AS char(8)) AS objtype, 
-               cast(coalesce(objlongschema,'*NONE') AS char(128)) AS objlongschema,
-               cast(coalesce(save_volume,'*NONE') AS char(71)) AS save_volume
+    exec sql declare objlst cursor for 
+        Select coalesce(objname,'*NONE') AS objname, 
+               coalesce(objtype,'*NONE') AS objtype, 
+               coalesce(objlongschema,'*NONE') AS objlongschema,
+               coalesce(save_volume,'*NONE') AS save_volume
         From Table (
             qsys2.object_statistics(
                 object_schema => :schema_name, 
                 objtypelist => '*ALL')
         );
 
-    exec sql 
-      open objlst;
-    
-    exec sql 
-      fetch objlst into :objname,
-                        :objtype,
-                        :objlongschema,
-                        :save_volume;
-    // *** Process Object List
+    exec sql open objlst;
+    exec sql fetch objlst into :objname, :objtype, :objlongschema, :save_volume;
     dow sqlcod = 0;
       if sqlcod = 0;
-        // snd-msg 'Input: ' + %trim(objlongschema) + '/' + %trim(objname) + '/' + %trim(objtype) + '.';
         find_chg_objaut(cur_sysnm:save_volume:objlongschema:objname:objtype);
       endif;
       //
-      exec sql 
-        fetch objlst into :objname,
-                          :objtype,
-                          :objlongschema,
-                          :save_volume;
+      exec sql fetch objlst into  :objname, :objtype, :objlongschema, :save_volume;
     enddo;
-
     exec sql 
       close objlst;
-  
   endif;
-
-  exec sql
-    fetch from liblst into :schema_name;
-
+  exec sql fetch from liblst into :schema_name;
 enddo;
-
-exec sql
-  close liblst; 
+exec sql close liblst; 
 
 *inlr = *on ;
 return ;
@@ -366,8 +340,8 @@ dcl-proc find_chg_objaut;
           snd-msg 'Owner diff unexpected error.';
         endif;
 
-          snd-msg '  from_file(before): ' + %trim(oaanam) + '.';
-          snd-msg '  from_curr(before): ' + %trim(authorization_list) + '.';
+        snd-msg '  from_file(before): ' + %trim(oaanam) + '.';
+        snd-msg '  from_curr(before): ' + %trim(authorization_list) + '.';
         if (%trim(oausr) = '*PUBLIC' and %trim(authorization_list) <> %trim(oaanam));
           snd-msg '*** From : ' + %trim(save_volume) + ' ***'; 
           snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) + 
@@ -396,7 +370,7 @@ dcl-proc find_chg_objaut;
         
         snd-msg '  from_file(before): ' + %trim(oaamgt) + '.';
         snd-msg '  from_curr(before): ' + %trim(authorization_list_management) + '.';
-        if (%trim(oausr) = '*PUBLIC' and %trim(authorization_list_management) <> %trim(oaamgt));
+        if %trim(oausr) = '*PUBLIC' and %trim(authorization_list_management) <> %trim(oaamgt);
           snd-msg '*** From : ' + %trim(save_volume) + ' ***'; 
           snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) + 
                   '/' + %trim(oausr) + '.';
@@ -487,10 +461,10 @@ dcl-proc find_chg_objaut;
                                     %trim(object_alter) + ',' + %trim(object_reference) + '.';        
         endif;
       elseif sqlcod = 100;
-          snd-msg '*** From : ' + %trim(save_volume) + ' ***'; 
-          snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) + 
+        snd-msg '*** From : ' + %trim(save_volume) + ' ***'; 
+        snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) + 
                   '/' + %trim(oausr) + '.';
-          snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) + 
+        snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) + 
                     '/' + %trim(authorization_name) + '.';
 
         snd-msg '  ----- Authority missing -----';

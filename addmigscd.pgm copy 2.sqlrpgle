@@ -3,7 +3,7 @@ ctl-opt option(*srcstmt) actgrp(*caller) ;
 
 // Copy a new table from qsys2.scheduled_job_info to DDSCINFO.SCDJOBINF
 // declare data structure
-DCL-DS ScdJobRec_t EXTNAME('QSYS2/SCHED_JOB') QUALIFIED;
+DCL-DS ScdJobRec_t EXTNAME('DDSCINFO/SCDJOBINF') QUALIFIED;
 END-DS;
 DCL-DS ScdJobRec likeds(ScdJobRec_t);
 
@@ -44,29 +44,28 @@ dcl-s cmdlen packed(15:5) inz;
 // 宣告 Cursor
 EXEC SQL
     DECLARE scdjob CURSOR FOR
-      Select scheduled_job_entry_number,
-        scheduled_job_name,
-        scheduled_date_value,
-        Coalesce(scheduled_date, '1900-01-01') As scheduled_date,
-        scheduled_time,
-        Coalesce(scheduled_days, '') As scheduled_days,
-        frequency,
-        Coalesce(relative_days_of_month, '') As relative_days_of_month,
-        recovery_action,
-        status,
-        job_queue_name,
-        Coalesce(job_queue_library_name, '') As job_queue_library_name,
-        Coalesce(job_queue_status, '') As job_queue_status,
-        Coalesce(dates_omitted, '') As dates_omitted,
-        Coalesce(description, '') As description,
-        Coalesce(command_string, '') As command_string,
-        Coalesce(user_profile_for_submitted_job, '') As user_profile_for_submitted_job,
-        Coalesce(job_description_name, '') As job_description_name,
-        Coalesce(job_description_library_name, '') As job_description_library_name,
-        Coalesce(message_queue_name, '') As message_queue_name,
-        Coalesce(message_queue_library_name, '') As message_queue_library_name,
-        Coalesce(keep_entry, '') As keep_entry
-      From ddscinfo.scdjobinf;
+        SELECT
+            COALESCE ( SCHEDULED_JOB_ENTRY_NUMBER , 0 ),    /* INTEGER       */
+            COALESCE ( SCHEDULED_JOB_NAME , '' ),           /* VARCHAR(10)   */
+            COALESCE ( SCHEDULED_DATE_VALUE , '' ),         /* VARCHAR(14)   */
+            SCHEDULED_DATE,                                 /* DATE          */
+            COALESCE ( SCHEDULED_TIME , '00:00:00' ),       /* TIME          */
+            SCHEDULED_DAYS,                                 /* VARCHAR(34)   */
+            FREQUENCY,                                      /* VARCHAR(8)    */
+            RELATIVE_DAYS_OF_MONTH,                         /* VARCHAR(13)   */
+            RECOVERY_ACTION,                                /* VARCHAR(7)    */
+            JOB_QUEUE_NAME,                                 /* VARCHAR(10)   */
+            JOB_QUEUE_LIBRARY_NAME,                         /* VARCHAR(10)   */
+            DATES_OMITTED,                                  /* VARCHAR(219)  */
+            DESCRIPTION,                                    /* VARCHAR(50)   */
+            COMMAND_STRING,                                 /* VARCHAR(512)  */
+            USER_PROFILE_FOR_SUBMITTED_JOB,                 /* VARCHAR(10)   */
+            JOB_DESCRIPTION_NAME,                           /* VARCHAR(10)   */
+            JOB_DESCRIPTION_LIBRARY_NAME,                   /* VARCHAR(10)   */
+            MESSAGE_QUEUE_NAME,                             /* VARCHAR(10)   */
+            MESSAGE_QUEUE_LIBRARY_NAME,                     /* VARCHAR(10)   */
+            KEEP_ENTRY                                      /* VARCHAR(3)    */
+        FROM DDSCINFO.SCDJOBINF;
 
 // 打開 Cursor
 EXEC SQL
@@ -147,12 +146,12 @@ DOW SQLCOD = 0; // 當 SQLCOD 為 0 時表示成功讀取到資料
         snd-msg 'No more record need to process ...';
     else;
        // 處理其他錯誤
-        Dsply ('SQL Error: ' + %Char(SqlCod));
+       Dsply ('SQL Error: ' + %Char(SqlCod));
     endif;
     snd-msg '----- Record End -----';
 
   // 讀取下一筆資料
-    EXEC SQL
+  EXEC SQL
     FETCH NEXT FROM scdjob INTO :ScdJobRec.ENTRYNO,
                                 :ScdJobRec.SCDJOBNAME,
                                 :ScdJobRec.SCDDATEV,
