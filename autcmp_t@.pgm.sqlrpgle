@@ -36,7 +36,7 @@ dcl-s save_volume varchar(71);
 exec sql 
   values current server into :cur_sysnm;
 snd-msg '--------------------------------------------------';
-// cur_sysnm = 'KSG01N'; // This line is for testing and should be removed for production.
+cur_sysnm = 'KSG01N';
 snd-msg ' Current SysName : ' + cur_sysnm;
 snd-msg '--------------------------------------------------';
 
@@ -218,20 +218,18 @@ dcl-proc find_chg_objaut;
   // from_file
   stmt = 'select oalib, oaname, oatype, oausr, oaobja, oaown, oapgrp, oagrpn, oaopr, oaomgt, ' +
            'oaexs, oaread, oaadd, oaupd, oadlt, oaamgt, oaanam, oaexec, oaalt, oaref ' + 
-           'from ' + %trim(srclbob) +
-           ' where oalib = ? ' +
-           'and oaname = ? ' +
-           'and oatype = ? ' +
-           'order by oalib, oaname, oatype, oausr ';
+           'from ' + %trim(srclbob) + ' ' +
+           'where oalib = ''' + %trim(objlib) + ''' ' +
+           'and oaname = ''' + %trim(objname) + ''' ' +
+           'and oatype = ''' + %trim(objtype) + ''' ' +
+           'order by oalib, oaname, oatype, oausr ' ;
     // snd-msg stmt;
     
   exec sql prepare S1 from :stmt;
   
   exec sql declare c1 cursor for S1;
   
-  exec sql open c1 using :objlib,
-                         :objname,
-                         :objtype;
+  exec sql open c1;
   
   exec sql fetch from c1 into :oalib,
                               :oaname,
@@ -414,15 +412,74 @@ dcl-proc find_chg_objaut;
                   '/' + %trim(data_read) + '/' + %trim(data_add) + '/' + %trim(data_update) + 
                   '/' + %trim(data_delete) + '/' + %trim(data_execute) + '/' + %trim(object_alter) +
                   '/' + %trim(object_reference) + '.';
-          cmdstr = build_aut_cmd('CHANGE': oalib: oaname: oatype: oausr: oaobja:
-                                 oaopr: oaomgt: oaexs: oaread: oaadd: oaupd:
-                                 oadlt: oaexec: oaalt: oaref);
-          // returnCode = syscmd(cmdstr);
-          snd-msg '  cmdstr: ' + cmdstr;
-          // if returnCode <> 0;
-          //   snd-msg 'sqlcod: ' + %char(sqlcod);
-          //   snd-msg '--- Change object authority error ---';
-          // endif;
+          select;
+          // Object authority is USER DEF
+            when %trim(oaobja) <> 'USER DEFINED';
+              cmdstr = 'GRTOBJAUT OBJ(' + %trim(oalib) +
+              '/' + %trim(oaname) + ') OBJTYPE(' + %trim(oatype) + ') USER(' +
+              %trim(oausr) + ') AUT(' + %trim(oaobja) + ') REPLACE(*NO)' ;
+              // returnCode = syscmd(cmdstr);
+              snd-msg '  cmdstr: ' + cmdstr;
+              // if returnCode <> 0;
+              //   snd-msg 'sqlcod: ' + %char(sqlcod);
+              //   snd-msg 'Grant object non user-defined authority error.';
+              // endif;
+            // Object authority is *ALL
+            when %trim(oaobja) = '*ALL';
+              cmdstr = 'GRTOBJAUT OBJ(' + %trim(oalib) +
+              '/' + %trim(oaname) + ') OBJTYPE(' + %trim(oatype) + ') USER(' +
+              %trim(oausr) + ') AUT(' + %trim(oaobja) + ') REPLACE(*NO)' ;
+              // returnCode = syscmd(cmdstr);
+              snd-msg '  cmdstr: ' + cmdstr;
+              // if returnCode <> 0;
+              //   snd-msg 'sqlcod: ' + %char(sqlcod);
+              //   snd-msg 'Grant object *ALL authority error.';
+              // endif;
+            // Object authority is user-defined
+            when %trim(oaobja) = 'USER DEFINED';
+              cmdstr = 'GRTOBJAUT OBJ(' + %trim(oalib) +
+              '/' + %trim(oaname) + ') OBJTYPE(' + %trim(oatype) + ') USER(' +
+              %trim(oausr) + ') AUT(' ;
+              if %trimr(oaopr) = 'YES';
+                cmdstr = %trimr(cmdstr) + '*OBJOPR' ;
+              endif;
+              if %trimr(oaomgt) ='YES';
+                cmdstr = %trimr(cmdstr) + ' *OBJMGT' ;
+              endif;
+              if %trimr(oaread) ='YES';
+                cmdstr = %trimr(cmdstr) + ' *READ' ;
+              endif;
+              if %trimr(oaadd) ='YES';
+                cmdstr = %trimr(cmdstr) + ' *ADD' ;
+              endif;
+              if %trimr(oaupd) ='YES';
+                cmdstr = %trimr(cmdstr) + ' *UPD' ;
+              endif;
+              if %trimr(oadlt) ='YES';
+                cmdstr = %trimr(cmdstr) + ' *DLT' ;
+              endif;
+              if %trimr(oaexs) ='YES';
+                cmdstr = %trimr(cmdstr) + ' *OBJEXIST' ;
+              endif;
+              if %trimr(oaexec) ='YES';
+                cmdstr = %trimr(cmdstr) + ' *EXECUTE' ;
+              endif;
+              if %trimr(oaalt) ='YES';
+                cmdstr = %trimr(cmdstr) + ' *OBJALTER' ;
+              endif;
+              if %trimr(oaref) ='YES';
+                cmdstr = %trimr(cmdstr) + ' *OBJREF' ;
+              endif;
+              cmdstr = %trimr(cmdstr) + ') REPLACE(*NO)' ;
+              // returnCode = syscmd(cmdstr);
+              snd-msg '  cmdstr: ' + cmdstr;
+              // if returnCode <> 0;
+              //   snd-msg 'sqlcod: ' + %char(sqlcod);
+              //   snd-msg '--- Grant object USER DEF authority error ---';
+              // endif;
+            other;
+              snd-msg '  --- Unexpected error ---';
+          endsl;
           snd-msg '----- Record End -----';
         endif;
       elseif sqlcod = 100;
@@ -430,15 +487,74 @@ dcl-proc find_chg_objaut;
         snd-msg '  ----- Authority missing -----';
         snd-msg '  From_file Object authority : ' + %trim(oaobja);
         snd-msg '  Object authority not found. Grant object authority. ' ;
-        cmdstr = build_aut_cmd('GRANT': oalib: oaname: oatype: oausr: oaobja:
-                               oaopr: oaomgt: oaexs: oaread: oaadd: oaupd:
-                               oadlt: oaexec: oaalt: oaref);
-        // returnCode = syscmd(cmdstr);
-        snd-msg '  cmdstr: ' + cmdstr;
-        // if returnCode <> 0;
-        //   snd-msg 'sqlcod: ' + %char(sqlcod);
-        //   snd-msg '--- Grant object authority error ---';
-        // endif;
+        select;
+        // Object authority is USER DEF
+          when %trim(oaobja) <> 'USER DEFINED';
+            cmdstr = 'GRTOBJAUT OBJ(' + %trim(oalib) +
+            '/' + %trim(oaname) + ') OBJTYPE(' + %trim(oatype) + ') USER(' +
+            %trim(oausr) + ') AUT(' + %trim(oaobja) + ') REPLACE(*NO)' ;
+            // returnCode = syscmd(cmdstr);
+            snd-msg '  cmdstr: ' + cmdstr;
+            // if returnCode <> 0;
+            //   snd-msg 'sqlcod: ' + %char(sqlcod);
+            //   snd-msg 'Grant object non user-defined authority error.';
+            // endif;
+          // Object authority is *ALL
+          when %trim(oaobja) = '*ALL';
+            cmdstr = 'GRTOBJAUT OBJ(' + %trim(oalib) +
+            '/' + %trim(oaname) + ') OBJTYPE(' + %trim(oatype) + ') USER(' +
+            %trim(oausr) + ') AUT(' + %trim(oaobja) + ') REPLACE(*NO)' ;
+            // returnCode = syscmd(cmdstr);
+            snd-msg '  cmdstr: ' + cmdstr;
+            // if returnCode <> 0;
+            //   snd-msg 'sqlcod: ' + %char(sqlcod);
+            //   snd-msg 'Grant object *ALL authority error.';
+            // endif;
+          // Object authority is user-defined
+          when %trim(oaobja) = 'USER DEFINED';
+            cmdstr = 'GRTOBJAUT OBJ(' + %trim(oalib) +
+            '/' + %trim(oaname) + ') OBJTYPE(' + %trim(oatype) + ') USER(' +
+            %trim(oausr) + ') AUT(' ;
+            if %trimr(oaopr) = 'YES';
+              cmdstr = %trimr(cmdstr) + '*OBJOPR' ;
+            endif;
+            if %trimr(oaomgt) ='YES';
+              cmdstr = %trimr(cmdstr) + ' *OBJMGT' ;
+            endif;
+            if %trimr(oaread) ='YES';
+              cmdstr = %trimr(cmdstr) + ' *READ' ;
+            endif;
+            if %trimr(oaadd) ='YES';
+              cmdstr = %trimr(cmdstr) + ' *ADD' ;
+            endif;
+            if %trimr(oaupd) ='YES';
+              cmdstr = %trimr(cmdstr) + ' *UPD' ;
+            endif;
+            if %trimr(oadlt) ='YES';
+              cmdstr = %trimr(cmdstr) + ' *DLT' ;
+            endif;
+            if %trimr(oaexs) ='YES';
+              cmdstr = %trimr(cmdstr) + ' *OBJEXIST' ;
+            endif;
+            if %trimr(oaexec) ='YES';
+              cmdstr = %trimr(cmdstr) + ' *EXECUTE' ;
+            endif;
+            if %trimr(oaalt) ='YES';
+              cmdstr = %trimr(cmdstr) + ' *OBJALTER' ;
+            endif;
+            if %trimr(oaref) ='YES';
+              cmdstr = %trimr(cmdstr) + ' *OBJREF' ;
+            endif;
+            cmdstr = %trimr(cmdstr) + ') REPLACE(*NO)' ;
+            // returnCode = syscmd(cmdstr);
+            snd-msg '  cmdstr: ' + cmdstr;
+            // if returnCode <> 0;
+            //   snd-msg 'sqlcod: ' + %char(sqlcod);
+            //   snd-msg '--- Grant object USER DEF authority error ---';
+            // endif;
+          other;
+            snd-msg '  --- Unexpected error ---';
+        endsl;
         snd-msg '----- Record End -----';
       else;
         snd-msg '  --- Unexpected error ---';
@@ -470,84 +586,4 @@ dcl-proc find_chg_objaut;
   
   exec sql close c1;
 
-end-proc;
-
-dcl-proc build_aut_cmd;
-  dcl-pi *n varchar(512);
-    cmd_type char(10) const; // 'GRANT' or 'CHANGE'
-    p_oalib  char(10) const;
-    p_oaname char(10) const;
-    p_oatype char(8) const;
-    p_oausr  char(10) const;
-    p_oaobja char(12) const;
-    p_oaopr  char(3) const;
-    p_oaomgt char(3) const;
-    p_oaexs  char(3) const;
-    p_oaread char(3) const;
-    p_oaadd  char(3) const;
-    p_oaupd  char(3) const;
-    p_oadlt  char(3) const;
-    p_oaexec char(3) const;
-    p_oaalt  char(3) const;
-    p_oaref  char(3) const;
-  end-pi;
-
-  dcl-s local_cmdstr varchar(512);
-  dcl-s base_cmd varchar(20);
-  dcl-s aut_list varchar(256) inz('');
-
-  if cmd_type = 'GRANT';
-    base_cmd = 'GRTOBJAUT';
-  else; // 'CHANGE'
-    base_cmd = 'CHGOBJAUT';
-  endif;
-
-  local_cmdstr = base_cmd + ' OBJ(' + %trim(p_oalib) + '/' + %trim(p_oaname) +
-                 ') OBJTYPE(' + %trim(p_oatype) + ') USER(' + %trim(p_oausr) +
-                 ') AUT(';
-
-  if %trim(p_oaobja) = 'USER DEFINED';
-    if %trimr(p_oaopr) = 'YES';
-      aut_list = %trimr(aut_list) + ' *OBJOPR' ;
-    endif;
-    if %trimr(p_oaomgt) ='YES';
-      aut_list = %trimr(aut_list) + ' *OBJMGT' ;
-    endif;
-    if %trimr(p_oaread) ='YES';
-      aut_list = %trimr(aut_list) + ' *READ' ;
-    endif;
-    if %trimr(p_oaadd) ='YES';
-      aut_list = %trimr(aut_list) + ' *ADD' ;
-    endif;
-    if %trimr(p_oaupd) ='YES';
-      aut_list = %trimr(aut_list) + ' *UPD' ;
-    endif;
-    if %trimr(p_oadlt) ='YES';
-      aut_list = %trimr(aut_list) + ' *DLT' ;
-    endif;
-    if %trimr(p_oaexs) ='YES';
-      aut_list = %trimr(aut_list) + ' *OBJEXIST' ;
-    endif;
-    if %trimr(p_oaexec) ='YES';
-      aut_list = %trimr(aut_list) + ' *EXECUTE' ;
-    endif;
-    if %trimr(p_oaalt) ='YES';
-      aut_list = %trimr(aut_list) + ' *OBJALTER' ;
-    endif;
-    if %trimr(p_oaref) ='YES';
-      aut_list = %trimr(aut_list) + ' *OBJREF' ;
-    endif;
-    local_cmdstr = %trimr(local_cmdstr) + %trim(aut_list);
-  else;
-    // For *ALL, *CHANGE, *USE, etc.
-    local_cmdstr = %trimr(local_cmdstr) + %trim(p_oaobja);
-  endif;
-
-  local_cmdstr = %trimr(local_cmdstr) + ')';
-
-  if cmd_type = 'GRANT';
-    local_cmdstr = %trimr(local_cmdstr) + ' REPLACE(*NO)';
-  endif;
-
-  return local_cmdstr;
 end-proc;
