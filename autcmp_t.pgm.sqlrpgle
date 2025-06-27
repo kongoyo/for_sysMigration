@@ -36,7 +36,7 @@ dcl-s save_volume varchar(71);
 exec sql 
   values current server into :cur_sysnm;
 snd-msg '--------------------------------------------------';
-// cur_sysnm = 'KSG01N'; // This line is for testing and should be removed for production.
+cur_sysnm = 'KSG01N'; // This line is for testing and should be removed for production.
 snd-msg ' Current SysName : ' + cur_sysnm;
 snd-msg '--------------------------------------------------';
 
