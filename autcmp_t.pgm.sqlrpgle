@@ -417,6 +417,11 @@ dcl-proc find_chg_objaut;
           snd-msg '----- Record End -----';
         endif;
       elseif sqlcod = 100;
+        
+        if authorization_name = '' ;
+          authorization_name = '<NULL>';
+        endif;
+
         snd-msg '*** From : ' + %trim(save_volume) + ' ***'; 
         snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) + 
                   '/' + %trim(oausr) + '.';
