@@ -220,6 +220,8 @@ dow sqlcod = 0 ;
     snd-msg 'Unknown error.';
   endif;
 
+  clear tcpctld;
+
   exec sql
     fetch from tcpctld into :cfgtbl.ctld,
                             :cfgtbl.linktype,

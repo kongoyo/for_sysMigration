@@ -1,35 +1,87 @@
 **free
-ctl-opt option(*srcstmt) dftactgrp(*no) ;
+Ctl-Opt option(*srcstmt) dftactgrp(*no);
 
-// user-input remote hostname
-dcl-pi *n ;
+Dcl-Pi *N;
   rmtlocnm char(8);
-end-pi;
+End-Pi;
+// declare for Break message
+dcl-pr QEZSNDMG extpgm ;
+  *n char(10) const ;
+  *n char(10) const ;
+  *n char(32) const ;
+  *n int(10) const  ;
+  *n char(10) const ;
+  *n int(10) const ;
+  *n int(10) const ;
+  *n int(10) const ;
+  *n char(8) ;
+  *n char(1) const ;
+  *n char(20) const ;
+  *n char(4) const ;
+  *n int(10) const ;
+end-pr ;
+// declare for Program status data structure (PSDS)
+dcl-ds Pgm psds qualified ;
+  JobUser char(10) ;          // Job user
+  SysName char(8) ;           // System name
+end-ds;
+
+dcl-s inMessage char(32);
 dcl-s cur_sysnm char(8);
 dcl-s lcllocnm char(8);
+dcl-s ErrorCode char(8);
 
 // Get current system name
 exec sql 
   values current server into :cur_sysnm;
-lcllocnm = cur_sysnm ; 
+    lcllocnm = cur_sysnm ; 
 
 // Aping Test
-monitor;
-  aping(rmtlocnm) ;
-on-error 0202;
-endmon;
-
+aping(rmtlocnm : inMessage) ;
+snd-msg inMessage ;
+QEZSNDMG('*INFO':
+           '*BREAK':
+           inMessage:
+           32:
+           Pgm.JobUser:
+           1:
+           0:
+           0:
+           ErrorCode:
+           'N':
+           ' ':
+           '*USR':
+           0) ;
 // DDMF Test
-monitor;
-  read_ddmf(rmtlocnm) ;
-on-error 0202;
-endmon;
-
+read_ddmf(rmtlocnm : inMessage) ;
+QEZSNDMG('*INFO':
+           '*BREAK':
+           inMessage:
+           32:
+           Pgm.JobUser:
+           1:
+           0:
+           0:
+           ErrorCode:
+           'N':
+           ' ':
+           '*USR':
+           0) ;
 // send network file Test 
-monitor; 
-  sndnf(rmtlocnm : lcllocnm) ;
-on-error 0202;
-endmon;
+sndnf(rmtlocnm : lcllocnm : inMessage) ;
+QEZSNDMG('*INFO':
+             '*BREAK':
+             inMessage:
+             32:
+             Pgm.JobUser:
+             1:
+             0:
+             0:
+             ErrorCode:
+             'N':
+             ' ':
+             '*USR':
+             0) ;
 
 *inlr = *on ;
 return ;
@@ -37,6 +89,7 @@ return ;
 dcl-proc APING;
   dcl-pi *n ;
     rmtlocnm char(8);
+    inMessage char(32);
   end-pi ;
   dcl-pr syscmd int(10) ExtProc('system');
   *n Pointer Value Options(*String);
@@ -45,19 +98,22 @@ dcl-proc APING;
   dcl-s commandString varchar(512);
 
   commandString = 'aping rmtlocname(' + %trim(rmtlocnm) + ') msgmode(*quiet)' ;
-  snd-msg commandString;
+  // snd-msg commandString;
 
   returnCode = syscmd(commandString);
   if returnCode <> 0;
-    snd-msg *ESCAPE %msg('APG0002' : 'STVMSGF');
+    inMessage = 'Aping failed.';
+    return;
   else; 
-    snd-msg *INFO %msg('APG0001' : 'STVMSGF');
+    inMessage = 'Aping success.';
+    return;
   endif;
 end-proc;
 
 dcl-proc read_ddmf;
   dcl-pi *n ;
     rmtlocnm char(8);
+    inMessage char(32);
   end-pi ;
   dcl-pr syscmd int(10) ExtProc('system');
   *n Pointer Value Options(*String);
@@ -75,9 +131,11 @@ dcl-proc read_ddmf;
   commandString = 'DSPPFM FILE(QTEMP/TSTDDMF)';
   returnCode = syscmd(commandString);
   if returnCode <> 0;
-    snd-msg *ESCAPE %msg('DMF0002' : 'STVMSGF');
+    inMessage = 'DDMF Test failed.';
+    return;
   else; 
-    snd-msg *INFO %msg('DMF0001' : 'STVMSGF');
+    inMessage = 'DDMF Test success.';
+    return;
   endif;
 end-proc;
 
@@ -85,6 +143,7 @@ dcl-proc sndnf;
   dcl-pi *n ;
     rmtlocnm char(8);
     lcllocnm char(8);
+    inMessage char(32);
   end-pi ;
   dcl-pr syscmd int(10) ExtProc('system');
   *n Pointer Value Options(*String);
@@ -105,7 +164,8 @@ dcl-proc sndnf;
   monitor;
     syscmd(commandString);
   on-error 0202;
-    snd-msg *escape %msg('SNF0001' : 'STVMSGF');
+    inMessage = 'Remote command failed.';
+    return;
   endmon;
 
   commandString = 'DSPMSG IBMECS';
