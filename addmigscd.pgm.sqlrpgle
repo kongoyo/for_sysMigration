@@ -1,45 +1,24 @@
 **FREE
-ctl-opt option(*srcstmt) actgrp(*caller) ;
+ctl-opt option(*srcstmt) dftactgrp(*no);
 
-// Copy a new table from qsys2.scheduled_job_info to DDSCINFO.SCDJOBINF
-// declare data structure
-DCL-DS ScdJobRec_t EXTNAME('QSYS2/SCHED_JOB') QUALIFIED;
+// dcl-pi *n;
+//   exelib varchar(10) const;
+//   exeobj varchar(10) const;
+// end-pi;
+
+DCL-DS scdjobrec_t EXTNAME('QSYS2/SCHED_JOB') QUALIFIED;
 END-DS;
-DCL-DS ScdJobRec likeds(ScdJobRec_t);
+DCL-DS scdjobrec likeds(scdjobrec_t);
 
-dcl-s scdtimh char(2) inz;
-dcl-s scdtimm char(2) inz;
-dcl-s scdtims char(2) inz;
+dcl-s scddateparm varchar(20) inz;
+dcl-s formattedOmitDates varchar(512);
 
-// declare Null Indicators
-Dcl-S  ScdDateNullInd int(5) ;
-Dcl-S  ReldmonNullInd int(5) ;
-Dcl-S  textNullInd int(5) ;
-Dcl-S  commandNullInd int(5) ;
-Dcl-S  jobqlNullInd int(5) ;
-Dcl-S  jobdlNullInd int(5) ;
-Dcl-S  msgqlNullInd int(5) ;
-Dcl-S  jobqNullInd int(5) ;
-Dcl-S  jobdNullInd int(5) ;
-Dcl-S  msgqNullInd int(5) ;
-Dcl-S  keepNullInd int(5) ;
-Dcl-S  omitdNullInd int(5) ;
-Dcl-S  scddaysNullInd int(5) ;
-
-// Prototype for QCMDEXC API
-dcl-pr QCMDCHK extpgm ;
-    *n char(500) options(*varsize) const ;
-    *n packed(15:5) const ;
-end-pr;
-
-// Prototype for QCMDCHK API
-dcl-pr QCMDEXC extpgm ;
-    *n char(500) options(*varsize) const ;
-    *n packed(15:5) const ;
+dcl-pr syscmd int(10) ExtProc('system');
+  *n Pointer Value Options(*String);
 end-pr;
 
 dcl-s cmdstr char(500) inz;
-dcl-s cmdlen packed(15:5) inz;
+dcl-s ReturnCode Int(10);
 
 // 宣告 Cursor
 EXEC SQL
@@ -47,7 +26,7 @@ EXEC SQL
       Select scheduled_job_entry_number,
         scheduled_job_name,
         scheduled_date_value,
-        Coalesce(scheduled_date, '1900-01-01') As scheduled_date,
+        Coalesce(scheduled_date, '1940-01-01') As scheduled_date,
         scheduled_time,
         Coalesce(scheduled_days, '') As scheduled_days,
         frequency,
@@ -66,117 +45,182 @@ EXEC SQL
         Coalesce(message_queue_name, '') As message_queue_name,
         Coalesce(message_queue_library_name, '') As message_queue_library_name,
         Coalesce(keep_entry, '') As keep_entry
-      From ddscinfo.scdjobinf;
+      From ddscinfo.scdjobinfo
+      order by scheduled_job_entry_number;
 
 // 打開 Cursor
-EXEC SQL
-    OPEN scdjob;
+EXEC SQL OPEN scdjob;
 
 // 第一次讀取資料 (在迴圈前)
 EXEC SQL
-    FETCH NEXT FROM scdjob INTO :ScdJobRec.ENTRYNO,
-                                :ScdJobRec.SCDJOBNAME,
-                                :ScdJobRec.SCDDATEV,
-                                :ScdJobRec.SCDDATE :ScdDateNullInd,
-                                :ScdJobRec.SCDTIME,
-                                :ScdJobRec.SCDDAYS :scddaysNullInd,
-                                :ScdJobRec.FREQUENCY,
-                                :ScdJobRec.RELDAYSMON :ReldmonNullInd,
-                                :ScdJobRec.RECOVERY,
-                                :ScdJobRec.JOBQ :jobqNullInd,
-                                :ScdJobRec.JOBQLIB :jobqlNullInd,
-                                :ScdJobRec.OMITDATES :omitdNullInd,
-                                :ScdJobRec.TEXT :textNullInd,
-                                :ScdJobRec.COMMAND :commandNullInd,
-                                :ScdJobRec.SBMJOBUSR,
-                                :ScdJobRec.JOBD :jobdNullInd,
-                                :ScdJobRec.JOBDLIB :jobdlNullInd,
-                                :ScdJobRec.MSGQ :msgqNullInd,
-                                :ScdJobRec.MSGQLIB :msgqlNullInd,
-                                :ScdJobRec.KEEP :keepNullInd;
+    FETCH NEXT FROM scdjob INTO :scdjobrec.ENTRYNO,
+                                :scdjobrec.SCDJOBNAME,
+                                :scdjobrec.SCDDATEV,
+                                :scdjobrec.SCDDATE,
+                                :scdjobrec.SCDTIME,
+                                :scdjobrec.SCDDAYS,
+                                :scdjobrec.FREQUENCY,
+                                :scdjobrec.RELDAYSMON,
+                                :scdjobrec.RECOVERY,
+                                :scdjobrec.status,
+                                :scdjobrec.JOBQ,
+                                :scdjobrec.JOBQLIB,
+                                :scdjobrec.jobqstatus,
+                                :scdjobrec.OMITDATES,
+                                :scdjobrec.TEXT,
+                                :scdjobrec.COMMAND,
+                                :scdjobrec.SBMJOBUSR,
+                                :scdjobrec.JOBD,
+                                :scdjobrec.JOBDLIB,
+                                :scdjobrec.MSGQ,
+                                :scdjobrec.MSGQLIB,
+                                :scdjobrec.KEEP;
 
-// 迴圈處理資料
-DOW SQLCOD = 0; // 當 SQLCOD 為 0 時表示成功讀取到資料
-    snd-msg '----- Record Begin -----';
-  // --- 在這裡處理每一筆記錄 ---
-  // ... 下面會詳細說明欄位處理 ...
-    if sqlcode = 0;
-        snd-msg ' < scheduled date > ';
-        If ScdDateNullInd <> -1;
-        else;
-        endif;
+DOW SQLCOD = 0; 
 
-        snd-msg ' < scheduled time > ';
-        scdtimh = %subst(%char(scdjobrec.scdtime):1:2);
-        scdtimm = %subst(%char(scdjobrec.scdtime):4:2);
-        scdtims = %subst(%char(scdjobrec.scdtime):7:2);
-
-        // scdtimhh = %subst(%char(scdtimhms):1:2);
-        // scdtimmm = %subst(scdtimhms:3:2);
-        // scdtimmm = %subst(scdtimhms:5:2);
-
-        snd-msg ' < Process command string > ';
-        cmdstr = 'ADDJOBSCDE '
-                + 'JOB(' + %trim(scdjobrec.scdJobName) + ') '
-                + 'CMD(' + %trim(scdjobrec.command) + ') '
-                + 'FRQ(' + %trim(scdjobrec.frequency) + ') '
-                + 'SCDDATE(' + %trim(%char(scdjobrec.scdDate)) + ') '
-                + 'SCDDAY(' + %trim(scdjobrec.SCDDAYS) + ') '
-                + 'SCDTIME(' + scdtimh + scdtimm + scdtims + ') '
-                + 'RELDAYMON(' + %trim(scdjobrec.RELDAYSMON) + ') '
-                + 'SAVE(' + %trim(scdjobrec.KEEP) + ') '
-                + 'OMITDATE(' + %trim(scdjobrec.OMITDATES) + ') '
-                + 'RCYACN(' + %trim(scdjobrec.recovery) + ') '
-                + 'JOBD(' + %trim(scdjobrec.JOBDLIB) + '/' + %trim(scdjobrec.JOBD) + ') '
-                + 'JOBQ(' + %trim(scdjobrec.JOBqLIB) + '/' + %trim(scdjobrec.JOBq) + ') '
-                + 'USER(' + %trim(scdjobrec.sbmJobUsr) + ') '
-                + 'MSGQ(' + %trim(scdjobrec.msgqLIB) + '/' + %trim(scdjobrec.msgq) + ') '
-                + 'TEXT(''' + %trim(scdjobrec.text) + ''')';
-
-        snd-msg cmdstr;
-
-        monitor;
-            exec sql
-                CALL QSYS2.QCMDEXC(:cmdstr);
-        ON-EXCP 'CPF0006';
-            dsply ('QCMDEXC Error: ');
-        endmon;
-
-    elseIf SqlCod = 100;
-        // SQLCODE 100 表示沒有更多資料
-        snd-msg 'No more record need to process ...';
+  if sqlcod = 0;
+    snd-msg ' < Process scheduled job > ';
+    cmdstr = 'ADDJOBSCDE'
+              + ' JOB(' + %trim(scdjobrec.scdJobName) + ')'
+              + ' CMD(' + %trim(scdjobrec.command) + ')'
+              + ' FRQ(' + %trim(scdjobrec.frequency) + ')';
+    if scdjobrec.SCDDATEV = 'SCHEDULED_DATE';
+      cmdstr = %trimr(cmdstr) + ' SCDDATE(' + %scanrpl('/' : '' : %char(scdjobrec.SCDDATE : *YMD)) + ') ';
+    elseif scdjobrec.SCDDATEV = 'SCHEDULED_DAYS';
+      cmdstr = %trimr(cmdstr) + ' SCDDAY(' + %scanrpl(',' : ' ' : %trim(scdjobrec.SCDDAYS)) + ') ';
+      scddateparm = '*NONE';
+      cmdstr = %trimr(cmdstr) + ' SCDDATE(' + %trim(scddateparm) + ') ';
     else;
-       // 處理其他錯誤
-        Dsply ('SQL Error: ' + %Char(SqlCod));
+      scddateparm = %trim(scdjobrec.SCDDATEV);
+      cmdstr = %trimr(cmdstr) + ' SCDDATE(' + %trim(scddateparm) + ') ';
     endif;
-    snd-msg '----- Record End -----';
-
+    cmdstr = %trimr(cmdstr) + ' SCDTIME(' + %scanrpl('.' : '' : %char(ScdJobRec.SCDTIME)) + ') ';
+    if %trim(scdjobrec.FREQUENCY) = '*ONCE';
+      cmdstr = %trimr(cmdstr) + ' SAVE(*' + %trim(scdjobrec.KEEP) + ')';
+    endif;  
+    if %trim(scdjobrec.RELDAYSMON) <> '';
+      cmdstr = %trimr(cmdstr) + ' RELDAYMON(' + %trim(scdjobrec.RELDAYSMON) + ')';
+    endif;        
+    if %trim(scdjobrec.jobdlib) = '';
+      cmdstr = %trimr(cmdstr) + ' JOBD(' + %trim(scdjobrec.JOBD) + ')';
+    else;
+      cmdstr = %trimr(cmdstr) + ' JOBD(' + %trim(scdjobrec.JOBDLIB) + '/' + %trim(scdjobrec.JOBD) + ')';
+    endif;
+    if %trim(scdjobrec.jobqlib) = '';
+      cmdstr = %trimr(cmdstr) + ' JOBQ(' + %trim(scdjobrec.JOBQ) + ')';
+    else;
+      cmdstr = %trimr(cmdstr) + ' JOBQ(' + %trim(scdjobrec.JOBQLIB) + '/' + %trim(scdjobrec.JOBQ) + ')';
+    endif;
+    if %trim(scdjobrec.msgqlib) = '';
+      cmdstr = %trimr(cmdstr) + ' MSGQ(' + %trim(scdjobrec.MSGQ) + ')';
+    else;
+      cmdstr = %trimr(cmdstr) + ' MSGQ(' + %trim(scdjobrec.MSGQLIB) + '/' + %trim(scdjobrec.MSGQ) + ')';
+    endif;
+    if %trim(scdjobrec.OMITDATES) <> '';
+      formattedOmitDates = ProcessOmitDates(scdjobrec.OMITDATES);
+      cmdstr = %trimr(cmdstr) + ' OMITDATE(' + %trim(formattedOmitDates) + ')';
+    endif;
+    if %trim(scdjobrec.TEXT) <> '';
+      cmdstr = %trimr(cmdstr) + ' TEXT(''' + %trim(scdjobrec.text) + ''')';
+    endif;
+    cmdstr = %trimr(cmdstr)
+              + ' RCYACN(' + %trim(scdjobrec.recovery) + ')'
+              + ' USER(' + %trim(scdjobrec.sbmJobUsr) + ')';
+      // snd-msg %trimr(cmdstr);
+    ReturnCode = syscmd(cmdstr);
+    If ReturnCode <> 0;
+      snd-msg '-- Add scheduled job error ' + ScdJobRec.SCDJOBNAME;
+      snd-msg 'Command: ';
+      snd-msg '  ' + %trim(cmdstr);
+    endif;
+      // Hold Job Schedule Entry
+    clear cmdstr;
+    if scdjobrec.status = 'HELD';
+      cmdstr = 'HLDJOBSCDE JOB(' + %trim(scdjobrec.SCDJOBNAME) + ') ENTRYNBR(*ALL)';
+      ReturnCode = syscmd(cmdstr);
+      If ReturnCode <> 0;
+        snd-msg '-- Hold scheduled job error ' + ScdJobRec.SCDJOBNAME;
+        snd-msg 'Command: ';
+        snd-msg '  ' + %trim(cmdstr);
+      endif;
+    endif;
+      // Delete Job Schedule Entry
+    clear cmdstr;
+    if scdjobrec.status = 'HELD';
+      cmdstr = 'RMVJOBSCDE JOB(' + %trim(scdjobrec.SCDJOBNAME) + ') ENTRYNBR(*ALL)';
+      ReturnCode = syscmd(cmdstr);
+      If ReturnCode <> 0;
+        snd-msg '-- Delete scheduled job error ' + ScdJobRec.SCDJOBNAME;
+        snd-msg 'Command: ';
+        snd-msg '  ' + %trim(cmdstr);
+      endif;
+    endif;
+  else;
+    Dsply ('SQL Error: ' + %Char(SqlCod));
+  endif;
+  snd-msg '-- End --';
+  clear scdjobrec;
+  clear cmdstr;
   // 讀取下一筆資料
-    EXEC SQL
-    FETCH NEXT FROM scdjob INTO :ScdJobRec.ENTRYNO,
-                                :ScdJobRec.SCDJOBNAME,
-                                :ScdJobRec.SCDDATEV,
-                                :ScdJobRec.SCDDATE :ScdDateNullInd,
-                                :ScdJobRec.SCDTIME,
-                                :ScdJobRec.SCDDAYS :scddaysNullInd,
-                                :ScdJobRec.FREQUENCY,
-                                :ScdJobRec.RELDAYSMON :ReldmonNullInd,
-                                :ScdJobRec.RECOVERY,
-                                :ScdJobRec.JOBQ :jobqNullInd,
-                                :ScdJobRec.JOBQLIB :jobqlNullInd,
-                                :ScdJobRec.OMITDATES :omitdNullInd,
-                                :ScdJobRec.TEXT :textNullInd,
-                                :ScdJobRec.COMMAND :commandNullInd,
-                                :ScdJobRec.SBMJOBUSR,
-                                :ScdJobRec.JOBD :jobdNullInd,
-                                :ScdJobRec.JOBDLIB :jobdlNullInd,
-                                :ScdJobRec.MSGQ :msgqNullInd,
-                                :ScdJobRec.MSGQLIB :msgqlNullInd,
-                                :ScdJobRec.KEEP :keepNullInd;
+  EXEC SQL
+    FETCH NEXT FROM scdjob INTO :scdjobrec.ENTRYNO,
+                                :scdjobrec.SCDJOBNAME,
+                                :scdjobrec.SCDDATEV,
+                                :scdjobrec.SCDDATE,
+                                :scdjobrec.SCDTIME,
+                                :scdjobrec.SCDDAYS,
+                                :scdjobrec.FREQUENCY,
+                                :scdjobrec.RELDAYSMON,
+                                :scdjobrec.RECOVERY,
+                                :scdjobrec.status,
+                                :scdjobrec.JOBQ,
+                                :scdjobrec.JOBQLIB,
+                                :scdjobrec.jobqstatus,
+                                :scdjobrec.OMITDATES,
+                                :scdjobrec.TEXT,
+                                :scdjobrec.COMMAND,
+                                :scdjobrec.SBMJOBUSR,
+                                :scdjobrec.JOBD,
+                                :scdjobrec.JOBDLIB,
+                                :scdjobrec.MSGQ,
+                                :scdjobrec.MSGQLIB,
+                                :scdjobrec.KEEP;
+
 ENDDO;
 
-EXEC SQL
-    CLOSE scdjob;
+EXEC SQL CLOSE scdjob;
 
 *INLR = *ON;
 RETURN;
+
+
+dcl-proc ProcessOmitDates;
+  dcl-pi ProcessOmitDates varchar(512);
+    in_omitDates varchar(512) const;
+  end-pi;
+
+  dcl-s current_date varchar(10) inz;
+  dcl-s start_pos int(10) inz(1);
+  dcl-s comma_pos int(10) inz;
+  dcl-s remaining_string varchar(512);
+  dcl-s result_string varchar(512) inz;
+
+  remaining_string = in_omitDates;
+
+  dow %len(%trim(remaining_string)) > 0;
+    comma_pos = %scan(',' : remaining_string : start_pos);
+    if comma_pos = 0;
+      current_date = %trim(remaining_string);
+      remaining_string = '';
+    else;
+      current_date = %subst(remaining_string : start_pos : comma_pos - start_pos);
+      remaining_string = %subst(remaining_string : comma_pos + 1);
+    endif;
+    result_string = %trim(result_string) + ' ' + %subst(%trim(%scanrpl('-' : '' : current_date)) : 3 : 6);
+  enddo;
+
+  if %subst(%trim(result_string) : 1 : 1) = ' ';
+    result_string = %trim(%subst(%trim(result_string) : 2));
+  endif;
+  return result_string;
+end-proc;
