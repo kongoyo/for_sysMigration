@@ -75,3 +75,9 @@ dcl-proc aping ;
     return;
   endif;
 end-proc;
+
+dcl-proc ddmf ;
+end-proc ;
+
+dcl-proc sndnetf ;
+end-proc ;
