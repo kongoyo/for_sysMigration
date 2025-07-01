@@ -1,6 +1,9 @@
 **FREE
 ctl-opt option(*srcstmt) actgrp(*caller) ;
 
+// CALL PGM(STEVE/AUTCMP_KGI) PARM('*ALL') 
+// CALL PGM(STEVE/AUTCMP_KGI) PARM('DDSCINFO')
+//
 // cur_sysnm    => 取得現行主機名稱
 // exelib       => 可以指定要執行的Library。如果輸入*ALL，則執行全部 Library。
 // save_volume  => 顯示物件來自於哪捲磁帶
@@ -32,18 +35,19 @@ dcl-s objtype varchar(8);
 dcl-s objlongschema varchar(128);
 dcl-s save_volume varchar(71);
 
-// Get current system name 
-exec sql 
+// Get current system name
+exec sql
   values current server into :cur_sysnm;
 snd-msg '--------------------------------------------------';
-cur_sysnm = 'KSG01N'; // This line is for testing and should be removed for production.
+// This line is for testing and should be removed
+// cur_sysnm = 'KSG01N';                                                for production.
 snd-msg ' Current SysName : ' + cur_sysnm;
 snd-msg '--------------------------------------------------';
 
 // declare liblst cursor
 if %upper(exelib) = '*ALL';
   stmt = 'Select schema_name ' +
-         'from qsys2.sysschemas ' + 
+         'from qsys2.sysschemas ' +
          'Where schema_name <> ''#COBLIB'' ' +
          'And schema_name <> ''#LIBRARY'' ' +
          'And schema_name <> ''#RPGLIB'' ' +
@@ -51,18 +55,21 @@ if %upper(exelib) = '*ALL';
          'And schema_name <> ''SYSIBM'' ' +
          'And schema_name <> ''SYSIBMADM'' ' +
          'And schema_name <> ''SYSPROC'' ' +
-         'And schema_name <> ''SYSTOOLS'' ';
+         'And schema_name <> ''SYSTOOLS'' ' +
+         'And schema_name Not Like ''RMT%'' ' +
+         'And schema_name Not Like ''HOYA%'' ' +
+         'And schema_name Not Like ''PMEDH%'' ';
 
 elseif exelib = '#COBLIB' or exelib = '#LIBRARY' or exelib = '#RPGLIB' or
-       %subst(exelib : 1 : 1) = 'Q' or exelib = 'SYSIBM' or exelib = 'SYSIBMADM' or 
+       %subst(exelib : 1 : 1) = 'Q' or exelib = 'SYSIBM' or exelib = 'SYSIBMADM' or
        exelib = 'SYSPROC' or exelib = 'SYSTOOLS';
   snd-msg ' *** Please do not input System Library Name! *** ';
-  *inlr = *on; 
+  *inlr = *on;
   return;
 else;
   stmt = 'Select schema_name ' +
-         'from qsys2.sysschemas ' + 
-         'where schema_name = ''' + %upper(%trim(exelib)) + ''' ' + 
+         'from qsys2.sysschemas ' +
+         'where schema_name = ''' + %upper(%trim(exelib)) + ''' ' +
          'And schema_name <> ''#COBLIB'' ' +
          'And schema_name <> ''#LIBRARY'' ' +
          'And schema_name <> ''#RPGLIB'' ' +
@@ -70,7 +77,10 @@ else;
          'And schema_name <> ''SYSIBM'' ' +
          'And schema_name <> ''SYSIBMADM'' ' +
          'And schema_name <> ''SYSPROC'' ' +
-         'And schema_name <> ''SYSTOOLS'' ';
+         'And schema_name <> ''SYSTOOLS'' ' +
+         'And schema_name Not Like ''RMT%'' ' +
+         'And schema_name Not Like ''HOYA%'' ' +
+         'And schema_name Not Like ''PMEDH%'' ';
 endif;
 
 exec sql prepare preliblst from :stmt;
@@ -79,14 +89,14 @@ exec sql open liblst;
 exec sql fetch from liblst into :schema_name;
 dow sqlcod = 0;
   if sqlcod = 0;
-    exec sql declare objlst cursor for 
-        Select coalesce(objname,'*NONE') AS objname, 
-               coalesce(objtype,'*NONE') AS objtype, 
+    exec sql declare objlst cursor for
+        Select coalesce(objname,'*NONE') AS objname,
+               coalesce(objtype,'*NONE') AS objtype,
                coalesce(objlongschema,'*NONE') AS objlongschema,
                coalesce(save_volume,'*NONE') AS save_volume
         From Table (
             qsys2.object_statistics(
-                object_schema => :schema_name, 
+                object_schema => :schema_name,
                 objtypelist => '*ALL')
         );
 
@@ -99,12 +109,12 @@ dow sqlcod = 0;
       //
       exec sql fetch objlst into  :objname, :objtype, :objlongschema, :save_volume;
     enddo;
-    exec sql 
+    exec sql
       close objlst;
   endif;
   exec sql fetch from liblst into :schema_name;
 enddo;
-exec sql close liblst; 
+exec sql close liblst;
 
 *inlr = *on ;
 return ;
@@ -176,58 +186,56 @@ dcl-proc find_chg_objaut;
   dcl-s cmdstr varchar(512);
   dcl-s returnCode int(5);
 
-  // Procedure Begin  
-  srclbnm = 'OAKSG01N';     // KGI => 'DDSCINFO'
+  // Procedure Begin
+  srclbnm = 'DDSCINFO';     // KGI => 'DDSCINFO'
   // save_volume = 'F02Y25';   // KGI => 'XXXY25'
   if save_volume = '*NONE';
     save_volume = %subst(%trim(cur_sysnm) : 3 : 3 );
-    srcobnm = 'OBJAUT' + %subst(%trim(cur_sysnm) : 3 : 3 ); 
+    srcobnm = 'OBJAUT' + %subst(%trim(cur_sysnm) : 3 : 3 );
     srclbob = %trimr(srclbnm) + '.' + %trim(srcobnm);
   else;
     save_volume = %subst(%trim(save_volume) : 1 : 3 );
-    srcobnm = 'OBJAUT' + %subst(%trim(save_volume) : 1 : 3 ); 
+    srcobnm = 'OBJAUT' + %subst(%trim(save_volume) : 1 : 3 );
     srclbob = %trimr(srclbnm) + '.' + %trim(srcobnm);
   endif;
 
   // from_file
   stmt = 'select oalib, oaname, oatype, oausr, oaobja, oaown, oapgrp, oagrpn, oaopr, oaomgt, ' +
-           'oaexs, oaread, oaadd, oaupd, oadlt, oaamgt, oaanam, oaexec, oaalt, oaref ' + 
+           'oaexs, oaread, oaadd, oaupd, oadlt, oaamgt, oaanam, oaexec, oaalt, oaref ' +
            'from ' + %trim(srclbob) +
            ' where oalib = ? ' +
            'and oaname = ? ' +
            'and oatype = ? ' +
            'order by oalib, oaname, oatype, oausr ';
     // snd-msg stmt;
-    
+
   exec sql prepare S1 from :stmt;
-  
+
   exec sql declare c1 cursor for S1;
-  
-  exec sql open c1 using :objlib,
-                         :objname,
-                         :objtype;
-  
+
+  exec sql open c1 using :objlib, :objname, :objtype;
+
   exec sql fetch from c1 into :oalib,
                               :oaname,
                               :oatype,
-                              :oausr, 
+                              :oausr,
                               :oaobja,
                               :oaown,
-                              :oapgrp, 
+                              :oapgrp,
                               :oagrpn,
-                              :oaopr, 
+                              :oaopr,
                               :oaomgt,
-                              :oaexs, 
+                              :oaexs,
                               :oaread,
-                              :oaadd, 
-                              :oaupd, 
-                              :oadlt, 
+                              :oaadd,
+                              :oaupd,
+                              :oadlt,
                               :oaamgt,
                               :oaanam,
                               :oaexec,
-                              :oaalt, 
+                              :oaalt,
                               :oaref ;
-  
+
   dow sqlcod = 0;
 
     if sqlcod = 0;
@@ -294,7 +302,7 @@ dcl-proc find_chg_objaut;
         oaamgt = 'NO';
       endif;
 
-      exec sql 
+      exec sql
           Select  system_object_schema, system_object_name, object_type,
                   authorization_name, object_authority, owner,
                   Cast(Coalesce(primary_group, '*NONE') As Char(10)) as primary_group,
@@ -303,10 +311,10 @@ dcl-proc find_chg_objaut;
                   cast(coalesce(authorization_list, '*NONE') As Char(10)) as authorization_list,
                   data_delete, data_execute, object_alter, object_reference, object_owner
           into    :system_object_schema, :system_object_name, :object_type,
-                  :authorization_name, :object_authority, :owner, 
-                  :primary_group,  
+                  :authorization_name, :object_authority, :owner,
+                  :primary_group,
                   :object_operational, :object_management, :object_existence,
-                  :data_read, :data_add, :data_update, :authorization_list_management, 
+                  :data_read, :data_add, :data_update, :authorization_list_management,
                   :authorization_list,
                   :data_delete, :data_execute, :object_alter, :object_reference, :object_owner
           From qsys2.object_privileges
@@ -314,19 +322,19 @@ dcl-proc find_chg_objaut;
             And system_object_name = trim(:objname)
             And object_type = trim(:objtype)
             And authorization_name = trim(:oausr) ;
-      
+
       // snd-msg 'from_curr sqlcod : ' + %char(sqlcod);
       if sqlcod = 0;
         if (%trim(oausr) = '*PUBLIC' and %trim(owner) <> %trim(oaown));
-          snd-msg '*** From : ' + %trim(save_volume) + ' ***'; 
-          snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) + 
+          snd-msg '*** From : ' + %trim(save_volume) + ' ***';
+          snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) +
                   '/' + %trim(oausr) + '.';
-          snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) + 
+          snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) +
                     '/' + %trim(authorization_name) + '.';
 
           snd-msg '  ----- Owner diff -----';
           snd-msg '  from_file: ' + %trim(oaown) + '.';
-          snd-msg '  from_curr: ' + %trim(owner) + '.';        
+          snd-msg '  from_curr: ' + %trim(owner) + '.';
           cmdstr =  'CHGOBJOWN OBJ(' + %trim(objlib) + '/' +
                     %trim(objname) + ') OBJTYPE(' + %trim(objtype) +
                     ') NEWOWN(' + %trim(oaown) + ')' ;
@@ -339,10 +347,10 @@ dcl-proc find_chg_objaut;
         endif;
 
         if (%trim(oausr) = '*PUBLIC' and %trim(authorization_list) <> %trim(oaanam));
-          snd-msg '*** From : ' + %trim(save_volume) + ' ***'; 
-          snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) + 
+          snd-msg '*** From : ' + %trim(save_volume) + ' ***';
+          snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) +
                   '/' + %trim(oausr) + '.';
-          snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) + 
+          snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) +
                     '/' + %trim(authorization_name) + '.';
 
           snd-msg '  ----- Authority List diff -----';
@@ -356,12 +364,12 @@ dcl-proc find_chg_objaut;
           //   snd-msg 'Change object owner error.';
           // endif;
         endif;
-        
+
         if %trim(oausr) = '*PUBLIC' and %trim(authorization_list_management) <> %trim(oaamgt);
-          snd-msg '*** From : ' + %trim(save_volume) + ' ***'; 
-          snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) + 
+          snd-msg '*** From : ' + %trim(save_volume) + ' ***';
+          snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) +
                   '/' + %trim(oausr) + '.';
-          snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) + 
+          snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) +
                     '/' + %trim(authorization_name) + '.';
 
           snd-msg '  ----- Authority List management diff -----';
@@ -376,9 +384,9 @@ dcl-proc find_chg_objaut;
           // endif;
         endif;
 
-        if %trim(oausr) = '*PUBLIC' and %trim(object_authority) <> %trim(oaobja) or 
+        if %trim(oausr) = '*PUBLIC' and %trim(object_authority) <> %trim(oaobja) or
            %trim(object_operational) <> %trim(oaopr) or
-           %trim(object_management) <> %trim(oaomgt) or 
+           %trim(object_management) <> %trim(oaomgt) or
            %trim(object_existence) <> %trim(oaexs) or
            %trim(data_read) <> %trim(oaread) or
            %trim(data_add) <> %trim(oaadd) or
@@ -387,22 +395,22 @@ dcl-proc find_chg_objaut;
            %trim(data_execute) <> %trim(oaexec) or
            %trim(object_alter) <> %trim(oaalt) or
            %trim(object_reference) <> %trim(oaref);
-          snd-msg '*** From : ' + %trim(save_volume) + ' ***'; 
-          snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) + 
+          snd-msg '*** From : ' + %trim(save_volume) + ' ***';
+          snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) +
                   '/' + %trim(oausr) + '.';
-          snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) + 
+          snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) +
                     '/' + %trim(authorization_name) + '.';
 
           snd-msg '  ----- Authority diff -----';
-          snd-msg '  from_file: ' + %trim(oaobja) + ',' + %trim(oaopr) + 
-                  ',' + %trim(oaomgt) + ',' + %trim(oaexs) + 
-                  ',' + %trim(oaread) + ',' + %trim(oaadd) +  ',' + %trim(oaupd) + 
+          snd-msg '  from_file: ' + %trim(oaobja) + ',' + %trim(oaopr) +
+                  ',' + %trim(oaomgt) + ',' + %trim(oaexs) +
+                  ',' + %trim(oaread) + ',' + %trim(oaadd) +  ',' + %trim(oaupd) +
                   ',' + %trim(oadlt) +  ',' + %trim(oaexec) + ',' + %trim(oaalt) +
                   ',' + %trim(oaref) +  '.';
-          snd-msg 'from_curr: ' + %trim(object_authority) + 
-                  ',' + %trim(object_operational) + ',' + %trim(object_management) + 
-                  ',' + %trim(object_existence) + 
-                  ',' + %trim(data_read) + ',' + %trim(data_add) + ',' + %trim(data_update) + 
+          snd-msg 'from_curr: ' + %trim(object_authority) +
+                  ',' + %trim(object_operational) + ',' + %trim(object_management) +
+                  ',' + %trim(object_existence) +
+                  ',' + %trim(data_read) + ',' + %trim(data_add) + ',' + %trim(data_update) +
                   ',' + %trim(data_delete) + ',' + %trim(data_execute) + ',' + %trim(object_alter) +
                   ',' + %trim(object_reference) + '.';
           cmdstr = build_aut_cmd('CHANGE': oalib: oaname: oatype: oausr: oaobja:
@@ -417,15 +425,15 @@ dcl-proc find_chg_objaut;
           snd-msg '----- Record End -----';
         endif;
       elseif sqlcod = 100;
-        
+
         if authorization_name = '' ;
           authorization_name = '<NULL>';
         endif;
 
-        snd-msg '*** From : ' + %trim(save_volume) + ' ***'; 
-        snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) + 
+        snd-msg '*** From : ' + %trim(save_volume) + ' ***';
+        snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) +
                   '/' + %trim(oausr) + '.';
-        snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) + 
+        snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) +
                     '/' + %trim(authorization_name) + '.';
 
         snd-msg '  ----- Authority missing -----';
@@ -449,26 +457,26 @@ dcl-proc find_chg_objaut;
     exec sql fetch from c1 into :oalib,
                                   :oaname,
                                   :oatype,
-                                  :oausr, 
+                                  :oausr,
                                   :oaobja,
                                   :oaown,
-                                  :oapgrp, 
+                                  :oapgrp,
                                   :oagrpn,
-                                  :oaopr, 
+                                  :oaopr,
                                   :oaomgt,
-                                  :oaexs, 
+                                  :oaexs,
                                   :oaread,
-                                  :oaadd, 
-                                  :oaupd, 
-                                  :oadlt, 
+                                  :oaadd,
+                                  :oaupd,
+                                  :oadlt,
                                   :oaamgt,
                                   :oaanam,
                                   :oaexec,
-                                  :oaalt, 
+                                  :oaalt,
                                   :oaref ;
-  
+
   enddo;
-  
+
   exec sql close c1;
 
 end-proc;
