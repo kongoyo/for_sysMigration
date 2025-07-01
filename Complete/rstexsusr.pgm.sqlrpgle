@@ -21,10 +21,13 @@ dcl-pr syscmd int(10) ExtProc('system');
   *n Pointer Value Options(*String);
 end-pr;
 //
-dcl-s cmdstr char(500);
+dcl-s cmdstr varchar(3000);
 dcl-s returnCode int(5);
 dcl-s stmt varchar(512);
 dcl-s username char(10);
+dcl-s usraut varchar(3000);
+
+dcl-s ifsfnm char()
 
 tapdev = %upper(%trim(tapdev));
 
@@ -38,8 +41,9 @@ exec sql fetch next from curusrlst into :username;
 //
 dow sqlcod = 0;
   if sqlcod = 0;
-    snd-msg '----- Process User ' + %trim(username) + ' -----';
-    exec sql select 
+    // if %scan('Q' : username : 1 : 1) = 0;
+      snd-msg '----- Process User ' + %trim(username) + ' -----';
+      exec sql select 
                coalesce(objname,'') as objname,
                coalesce(save_volume,'') as save_volume,
                coalesce(save_sequence_number,0) as save_seqnum
@@ -50,56 +54,64 @@ dow sqlcod = 0;
               object_schema => 'QSYS', 
               objtypelist => '*USRPRF', 
               object_name => trim(:username))) ;  
-    snd-msg '  SQL code   : ' + %char(sqlcod);
+      snd-msg '  SQL code   : ' + %char(sqlcod);
 
-    // Action section
-    if sqlcod = 0 ;
+      // Action section
+      if sqlcod = 0 ;
 
       // Restore *usrprf
-      cmdstr = 'RSTUSRPRF DEV(' + %trim(tapdev) +
+        cmdstr = 'RSTUSRPRF DEV(' + %trim(tapdev) +
               ') USRPRF(' + %trim(usrsavdev.objname) +
               ') VOL(' + %trim(usrsavdev.save_volume) +
               ') SEQNBR(' + %trim(%char(usrsavdev.save_seqnum)) +
               ') ALWOBJDIF(*ALL) SECDTA(*USRPRF)';
-      snd-msg '1st Command: ' + %trim(cmdstr);
-      // returnCode = syscmd(cmdstr);
-      // if returnCode <> 0;
-      //   snd-msg 'sqlcod: ' + %char(sqlcod);
-      //   snd-msg '--- Restore *usrprf error ---';
-      // endif;
-    // Restore *pvtaut
-      cmdstr = 'RSTUSRPRF DEV(' + %trim(tapdev) +
+        snd-msg '1st Command: ' + %trim(cmdstr);
+        // returnCode = syscmd(cmdstr);
+        // if returnCode <> 0;
+        //   snd-msg 'sqlcod: ' + %char(sqlcod);
+        //   snd-msg '--- Restore *usrprf error ---';
+        // endif;
+        // Restore *pvtaut
+        cmdstr = 'RSTUSRPRF DEV(' + %trim(tapdev) +
               ') USRPRF(' + %trim(usrsavdev.objname) +
               ') VOL(' + %trim(usrsavdev.save_volume) +
               ') SEQNBR(' + %trim(%char(usrsavdev.save_seqnum)) +
               ') ALWOBJDIF(*ALL) SECDTA(*PVTAUT)';
-      snd-msg '2nd Command: ' + %trim(cmdstr);
-      // returnCode = syscmd(cmdstr);
-      // if returnCode <> 0;
-      //   snd-msg 'sqlcod: ' + %char(sqlcod);
-      //   snd-msg '--- Restore *pvtaut error ---';
-      // endif;
-    // Restore *pwdgrp
-      cmdstr = 'RSTUSRPRF DEV(' + %trim(tapdev) +
+        snd-msg '2nd Command: ' + %trim(cmdstr);
+        // returnCode = syscmd(cmdstr);
+        // if returnCode <> 0;
+        //   snd-msg 'sqlcod: ' + %char(sqlcod);
+        //   snd-msg '--- Restore *pvtaut error ---';
+        // endif;
+        // Restore *pwdgrp
+        cmdstr = 'RSTUSRPRF DEV(' + %trim(tapdev) +
               ') USRPRF(' + %trim(usrsavdev.objname) +
               ') VOL(' + %trim(usrsavdev.save_volume) +
               ') SEQNBR(' + %trim(%char(usrsavdev.save_seqnum)) +
               ') ALWOBJDIF(*ALL) SECDTA(*PWDGRP)';
-      snd-msg '3rd Command: ' + %trim(cmdstr);
-      // returnCode = syscmd(cmdstr);
-      // if returnCode <> 0;
-      //   snd-msg 'sqlcod: ' + %char(sqlcod);
-      //   snd-msg '--- Restore *pwdgrp error ---';
-      // endif;
+        snd-msg '3rd Command: ' + %trim(cmdstr);
+        // returnCode = syscmd(cmdstr);
+        // if returnCode <> 0;
+        //   snd-msg 'sqlcod: ' + %char(sqlcod);
+        //   snd-msg '--- Restore *pwdgrp error ---';
+        // endif;
+        // usraut
+        usraut = %trimr(usraut) + ' ' + %trim(usrsavdev.objname) + ' ';
 
-    endif;
-    // Action section
-
+      endif;
+      // Action section
+    // endif;
     snd-msg '----- Finish User ' + %trim(username) + ' -----';
   endif;
   exec sql fetch next from curusrlst into :username;    
 enddo;
 exec sql close curusrlst;
+
+clear cmdstr;
+snd-msg 'Usraut: ' + %trim(usraut);
+cmdstr = 'RSTAUT USRPRF(' + %trim(usraut) + ')';
+snd-msg 'Restore user authority: ' + %trim(cmdstr);
+// returnCode = syscmd(cmdstr);
 
 *inlr = *on;
 return;
