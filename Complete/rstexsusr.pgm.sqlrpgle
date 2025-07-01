@@ -21,15 +21,23 @@ dcl-pr syscmd int(10) ExtProc('system');
   *n Pointer Value Options(*String);
 end-pr;
 //
-dcl-s cmdstr varchar(3000);
+dcl-s cmdstr varchar(7000);
 dcl-s returnCode int(5);
 dcl-s stmt varchar(512);
 dcl-s username char(10);
-dcl-s usraut varchar(3000);
+dcl-s usraut varchar(5000);
 
-dcl-s ifsfnm char()
+dcl-s ifsfnm char(200);
+dcl-s cur_date date;
+dcl-s count int(10) inz(0);
 
 tapdev = %upper(%trim(tapdev));
+
+exec sql values(current_date) into :cur_date;
+ifsfnm = '/home/qsecofr/kgi_log/rstexsusr_' + %trim(%char(cur_date)) + '.log';
+exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          '--- Process begin ---',
+                          END_OF_LINE => 'CRLF'); 
 
 // Declare cursor for table qsys2.users()
 clear stmt;
@@ -41,6 +49,7 @@ exec sql fetch next from curusrlst into :username;
 //
 dow sqlcod = 0;
   if sqlcod = 0;
+    count = count + 1;
     // if %scan('Q' : username : 1 : 1) = 0;
       snd-msg '----- Process User ' + %trim(username) + ' -----';
       exec sql select 
@@ -100,18 +109,42 @@ dow sqlcod = 0;
 
       endif;
       // Action section
+      if count = 50;
+        clear cmdstr;
+        // snd-msg 'Usraut: ' + %trim(usraut);
+        cmdstr = 'RSTAUT USRPRF(' + %trim(usraut) + ')';
+        exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                          trim(:cmdstr),
+                                          OVERWRITE => 'APPEND',
+                                          END_OF_LINE => 'CRLF'); 
+
+        // snd-msg 'Restore user authority: ' + %trim(cmdstr);
+        clear count;
+        clear usraut;
+      endif;
+      // returnCode = syscmd(cmdstr);
     // endif;
     snd-msg '----- Finish User ' + %trim(username) + ' -----';
   endif;
   exec sql fetch next from curusrlst into :username;    
 enddo;
-exec sql close curusrlst;
 
 clear cmdstr;
-snd-msg 'Usraut: ' + %trim(usraut);
+// snd-msg 'Usraut: ' + %trim(usraut);
 cmdstr = 'RSTAUT USRPRF(' + %trim(usraut) + ')';
-snd-msg 'Restore user authority: ' + %trim(cmdstr);
-// returnCode = syscmd(cmdstr);
+exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                  trim(:cmdstr),
+                                  OVERWRITE => 'APPEND',
+                                  END_OF_LINE => 'CRLF'); 
+// snd-msg 'Restore user authority: ' + %trim(cmdstr);
+clear count;
+clear usraut;
+
+exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          '--- Process end ---',
+                          END_OF_LINE => 'CRLF');
+
+exec sql close curusrlst;
 
 *inlr = *on;
 return;
