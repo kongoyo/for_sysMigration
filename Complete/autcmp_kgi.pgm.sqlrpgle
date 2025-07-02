@@ -41,11 +41,20 @@ dcl-s cur_time time;
 dcl-s count int(10) inz(0);
 dcl-s logtxt char(200);
 
+// Get current system name
 exec sql values current server into :cur_sysnm;
 exec sql values(current_date) into :cur_date;
 exec sql values(current_time) into :cur_time;
 ifsfnm = '/home/qsecofr/kgi_log/autcmp_' + %trim(%char(cur_date)) + '.log';
-// Get current system name
+// snd-msg '--------------------------------------------------';
+// This line is for testing and should be removed
+cur_sysnm = 'AS101N';
+// snd-msg ' Current SysName : ' + cur_sysnm;
+// snd-msg '--------------------------------------------------';
+exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                  '',
+                                  OVERWRITE => 'REPLACE',
+                                  END_OF_LINE => 'CRLF');
 logtxt = ' ' + %trim(%char(cur_date)) + 
          ' ' + %trim(%char(cur_time)) + 
          ' ' + %trim(cur_sysnm) + 
@@ -53,13 +62,6 @@ logtxt = ' ' + %trim(%char(cur_date)) +
 exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                                   trim(:logtxt),
                                   END_OF_LINE => 'CRLF');
- 
-// snd-msg '--------------------------------------------------';
-// This line is for testing and should be removed
-cur_sysnm = 'AS101N';
-// snd-msg ' Current SysName : ' + cur_sysnm;
-// snd-msg '--------------------------------------------------';
-
 // declare liblst cursor
 if %upper(exelib) = '*ALL';
   stmt = 'Select schema_name ' +
