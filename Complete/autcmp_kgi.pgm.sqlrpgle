@@ -35,14 +35,30 @@ dcl-s objtype varchar(8);
 dcl-s objlongschema varchar(128);
 dcl-s save_volume varchar(71);
 
+dcl-s ifsfnm char(200);
+dcl-s cur_date date;
+dcl-s cur_time time;
+dcl-s count int(10) inz(0);
+dcl-s logtxt char(200);
+
+exec sql values current server into :cur_sysnm;
+exec sql values(current_date) into :cur_date;
+exec sql values(current_time) into :cur_time;
+ifsfnm = '/home/qsecofr/kgi_log/autcmp_' + %trim(%char(cur_date)) + '.log';
 // Get current system name
-exec sql
-  values current server into :cur_sysnm;
-snd-msg '--------------------------------------------------';
+logtxt = ' ' + %trim(%char(cur_date)) + 
+         ' ' + %trim(%char(cur_time)) + 
+         ' ' + %trim(cur_sysnm) + 
+         ' ' + 'Object authority compare start.';
+exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                  trim(:logtxt),
+                                  END_OF_LINE => 'CRLF');
+ 
+// snd-msg '--------------------------------------------------';
 // This line is for testing and should be removed
-// cur_sysnm = 'KSG01N';                                                for production.
-snd-msg ' Current SysName : ' + cur_sysnm;
-snd-msg '--------------------------------------------------';
+cur_sysnm = 'AS101N';
+// snd-msg ' Current SysName : ' + cur_sysnm;
+// snd-msg '--------------------------------------------------';
 
 // declare liblst cursor
 if %upper(exelib) = '*ALL';
@@ -63,7 +79,15 @@ if %upper(exelib) = '*ALL';
 elseif exelib = '#COBLIB' or exelib = '#LIBRARY' or exelib = '#RPGLIB' or
        %subst(exelib : 1 : 1) = 'Q' or exelib = 'SYSIBM' or exelib = 'SYSIBMADM' or
        exelib = 'SYSPROC' or exelib = 'SYSTOOLS';
-  snd-msg ' *** Please do not input System Library Name! *** ';
+  // snd-msg ' *** Please do not input System Library Name! *** ';
+  logtxt = ' ' + %trim(%char(cur_date)) + 
+         ' ' + %trim(%char(cur_time)) + 
+         ' ' + %trim(cur_sysnm) + 
+         ' ' + ' *** Please do not input System Library Name! *** ';
+  exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                  trim(:logtxt),
+                                  OVERWRITE => 'APPEND',
+                                  END_OF_LINE => 'CRLF');
   *inlr = *on;
   return;
 else;
@@ -187,7 +211,7 @@ dcl-proc find_chg_objaut;
   dcl-s returnCode int(5);
 
   // Procedure Begin
-  srclbnm = 'DDSCINFO';     // KGI => 'DDSCINFO'
+  srclbnm = 'OAAS101N';     // KGI => 'DDSCINFO'
   // save_volume = 'F02Y25';   // KGI => 'XXXY25'
   if save_volume = '*NONE';
     save_volume = %subst(%trim(cur_sysnm) : 3 : 3 );
@@ -323,67 +347,202 @@ dcl-proc find_chg_objaut;
             And object_type = trim(:objtype)
             And authorization_name = trim(:oausr) ;
 
-      // snd-msg 'from_curr sqlcod : ' + %char(sqlcod);
       if sqlcod = 0;
         if (%trim(oausr) = '*PUBLIC' and %trim(owner) <> %trim(oaown));
-          snd-msg '*** From : ' + %trim(save_volume) + ' ***';
-          snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) +
-                  '/' + %trim(oausr) + '.';
-          snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) +
+          // snd-msg '*** From : ' + %trim(save_volume) + ' ***';
+          // snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) +
+                  // '/' + %trim(oausr) + '.';
+          // snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) +
+          //           '/' + %trim(authorization_name) + '.';
+          logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '*** From : ' + %trim(save_volume) + ' ***';
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF'); 
+          logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) +
+                    '/' + %trim(oausr) + '.';
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');
+          logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) +
                     '/' + %trim(authorization_name) + '.';
-
-          snd-msg '  ----- Owner diff -----';
-          snd-msg '  from_file: ' + %trim(oaown) + '.';
-          snd-msg '  from_curr: ' + %trim(owner) + '.';
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');
+          // snd-msg '  ----- Owner diff -----';
+          logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '  ----- Owner diff -----  ';
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');          
+          // snd-msg '  from_file: ' + %trim(oaown) + '.';
+          logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '  from_file: ' + %trim(oaown) + '.';
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');          
+          // snd-msg '  from_curr: ' + %trim(owner) + '.';
+          logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '  from_curr: ' + %trim(owner) + '.';
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');
           cmdstr =  'CHGOBJOWN OBJ(' + %trim(objlib) + '/' +
                     %trim(objname) + ') OBJTYPE(' + %trim(objtype) +
                     ') NEWOWN(' + %trim(oaown) + ')' ;
           // returnCode = syscmd(cmdstr);
-          snd-msg '  cmdstr: ' + cmdstr;
+          // snd-msg '  cmdstr: ' + cmdstr;
+          logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '  cmdstr: ' + cmdstr;
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');
           // if returnCode <> 0;
           //   snd-msg 'sqlcod: ' + %char(sqlcod);
           //   snd-msg 'Change object owner error.';
           // endif;
         endif;
-
         if (%trim(oausr) = '*PUBLIC' and %trim(authorization_list) <> %trim(oaanam));
-          snd-msg '*** From : ' + %trim(save_volume) + ' ***';
-          snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) +
+          // snd-msg '*** From : ' + %trim(save_volume) + ' ***';
+          logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '*** From : ' + %trim(save_volume) + ' ***';
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');
+          // snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) +
+          //         '/' + %trim(oausr) + '.';
+          logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) +
                   '/' + %trim(oausr) + '.';
-          snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) +
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');          
+          // snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) +
+          //           '/' + %trim(authorization_name) + '.';
+          logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) +
                     '/' + %trim(authorization_name) + '.';
-
-          snd-msg '  ----- Authority List diff -----';
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');
+          // snd-msg '  ----- Authority List diff -----';
+          logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '  ----- Authority List diff -----';
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');          
           cmdstr =  'GRTOBJAUT OBJ(' + %trim(objlib) + '/' +
                     %trim(objname) + ') OBJTYPE(' + %trim(objtype) +
                     ') AUTL(' + %trim(oaanam) + ')' ;
           // returnCode = syscmd(cmdstr);
-          snd-msg '  cmdstr: ' + cmdstr;
+          // snd-msg '  cmdstr: ' + cmdstr;
+          logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '  cmdstr: ' + cmdstr;
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');
           // if returnCode <> 0;
           //   snd-msg 'sqlcod: ' + %char(sqlcod);
           //   snd-msg 'Change object owner error.';
           // endif;
         endif;
-
         if %trim(oausr) = '*PUBLIC' and %trim(authorization_list_management) <> %trim(oaamgt);
-          snd-msg '*** From : ' + %trim(save_volume) + ' ***';
-          snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) +
+          // snd-msg '*** From : ' + %trim(save_volume) + ' ***';
+          logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '*** From : ' + %trim(save_volume) + ' ***';
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');          
+          // snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) +
+          //         '/' + %trim(oausr) + '.';
+          logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) +
                   '/' + %trim(oausr) + '.';
-          snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) +
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');          
+          // snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) +
+          //           '/' + %trim(authorization_name) + '.';
+          logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) +
                     '/' + %trim(authorization_name) + '.';
-
-          snd-msg '  ----- Authority List management diff -----';
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');
+          // snd-msg '  ----- Authority List management diff -----';
+          logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '  ----- Authority List management diff -----';
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');
           cmdstr =  'GRTOBJAUT OBJ(' + %trim(objlib) + '/' +
                     %trim(objname) + ') OBJTYPE(' + %trim(objtype) +
                     ') USER(*PUBLIC) AUT(*AUTL)' ;
           // returnCode = syscmd(cmdstr);
-          snd-msg '  cmdstr: ' + cmdstr;
+          // snd-msg '  cmdstr: ' + cmdstr;
+          logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '  cmdstr: ' + cmdstr;
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');          
           // if returnCode <> 0;
           //   snd-msg 'sqlcod: ' + %char(sqlcod);
           //   snd-msg 'Change object owner error.';
           // endif;
         endif;
-
         if %trim(oausr) = '*PUBLIC' and %trim(object_authority) <> %trim(oaobja) or
            %trim(object_operational) <> %trim(oaopr) or
            %trim(object_management) <> %trim(oaomgt) or
@@ -395,65 +554,200 @@ dcl-proc find_chg_objaut;
            %trim(data_execute) <> %trim(oaexec) or
            %trim(object_alter) <> %trim(oaalt) or
            %trim(object_reference) <> %trim(oaref);
-          snd-msg '*** From : ' + %trim(save_volume) + ' ***';
-          snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) +
+          // snd-msg '*** From : ' + %trim(save_volume) + ' ***';
+          logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '*** From : ' + %trim(save_volume) + ' ***';
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');          
+          // snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) +
+          //         '/' + %trim(oausr) + '.';
+          logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) +
                   '/' + %trim(oausr) + '.';
-          snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) +
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');           
+          // snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) +
+          //           '/' + %trim(authorization_name) + '.';
+          logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) +
                     '/' + %trim(authorization_name) + '.';
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');
 
-          snd-msg '  ----- Authority diff -----';
-          snd-msg '  from_file: ' + %trim(oaobja) + ',' + %trim(oaopr) +
+          // snd-msg '  ----- Authority diff -----';
+          logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '  ----- Authority diff -----';
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');          
+          // snd-msg '  from_file: ' + %trim(oaobja) + ',' + %trim(oaopr) +
+          //         ',' + %trim(oaomgt) + ',' + %trim(oaexs) +
+          //         ',' + %trim(oaread) + ',' + %trim(oaadd) +  ',' + %trim(oaupd) +
+          //         ',' + %trim(oadlt) +  ',' + %trim(oaexec) + ',' + %trim(oaalt) +
+          //         ',' + %trim(oaref) +  '.';
+          logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '  from_file: ' + %trim(oaobja) + ',' + %trim(oaopr) +
                   ',' + %trim(oaomgt) + ',' + %trim(oaexs) +
                   ',' + %trim(oaread) + ',' + %trim(oaadd) +  ',' + %trim(oaupd) +
                   ',' + %trim(oadlt) +  ',' + %trim(oaexec) + ',' + %trim(oaalt) +
                   ',' + %trim(oaref) +  '.';
-          snd-msg 'from_curr: ' + %trim(object_authority) +
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');          
+          // snd-msg 'from_curr: ' + %trim(object_authority) +
+          //         ',' + %trim(object_operational) + ',' + %trim(object_management) +
+          //         ',' + %trim(object_existence) +
+          //         ',' + %trim(data_read) + ',' + %trim(data_add) + ',' + %trim(data_update) +
+          //         ',' + %trim(data_delete) + ',' + %trim(data_execute) + ',' + %trim(object_alter) +
+          //         ',' + %trim(object_reference) + '.';
+          logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + 'from_curr: ' + %trim(object_authority) +
                   ',' + %trim(object_operational) + ',' + %trim(object_management) +
                   ',' + %trim(object_existence) +
                   ',' + %trim(data_read) + ',' + %trim(data_add) + ',' + %trim(data_update) +
                   ',' + %trim(data_delete) + ',' + %trim(data_execute) + ',' + %trim(object_alter) +
                   ',' + %trim(object_reference) + '.';
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');          
           cmdstr = build_aut_cmd('CHANGE': oalib: oaname: oatype: oausr: oaobja:
                                  oaopr: oaomgt: oaexs: oaread: oaadd: oaupd:
                                  oadlt: oaexec: oaalt: oaref);
           // returnCode = syscmd(cmdstr);
-          snd-msg '  cmdstr: ' + %trim(cmdstr);
+          // snd-msg '  cmdstr: ' + %trim(cmdstr);
+          logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '  cmdstr: ' + %trim(cmdstr);
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');          
           // if returnCode <> 0;
           //   snd-msg 'sqlcod: ' + %char(sqlcod);
           //   snd-msg '--- Change object authority error ---';
           // endif;
-          snd-msg '----- Record End -----';
+          // snd-msg 'Object authority compare finished.';
         endif;
+        logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + 'Object authority compare finished.';
+        exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');
       elseif sqlcod = 100;
-
         if authorization_name = '' ;
           authorization_name = '<NULL>';
         endif;
-
-        snd-msg '*** From : ' + %trim(save_volume) + ' ***';
-        snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) +
+        // snd-msg '*** From : ' + %trim(save_volume) + ' ***';
+        logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '*** From : ' + %trim(save_volume) + ' ***';
+        exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');        
+        // snd-msg '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) +
+        //           '/' + %trim(oausr) + '.';
+        logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '  from_file: ' + %trim(oalib) + '/' + %trim(oaname) + '/' + %trim(oatype) +
                   '/' + %trim(oausr) + '.';
-        snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) +
+        exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');        
+        // snd-msg '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) +
+        //             '/' + %trim(authorization_name) + '.';
+        logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '  from_curr: ' + %trim(objlib) + '/' + %trim(objname) + '/' + %trim(objtype) +
                     '/' + %trim(authorization_name) + '.';
-
-        snd-msg '  ----- Authority missing -----';
-        snd-msg '  From_file Object authority : ' + %trim(oaobja);
-        snd-msg '  Object authority not found. Grant object authority. ' ;
+        exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');
+        // snd-msg '  ----- Authority missing -----';
+        logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '  ----- Authority missing -----';
+        exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');
+        // snd-msg '  From_file Object authority : ' + %trim(oaobja);
+        logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '  From_file Object authority : ' + %trim(oaobja);
+        exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');
+        // snd-msg '  Object authority not found. Grant object authority. ' ;
+        logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '  Object authority not found. Grant object authority. ' ;
+        exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');
         cmdstr = build_aut_cmd('GRANT': oalib: oaname: oatype: oausr: oaobja:
                                oaopr: oaomgt: oaexs: oaread: oaadd: oaupd:
                                oadlt: oaexec: oaalt: oaref);
         // returnCode = syscmd(cmdstr);
-        snd-msg '  cmdstr: ' + cmdstr;
+        // snd-msg '  cmdstr: ' + cmdstr;
+        logtxt = ' ' + %trim(%char(cur_date)) + 
+                    ' ' + %trim(%char(cur_time)) + 
+                    ' ' + %trim(cur_sysnm) + 
+                    ' ' + '  cmdstr: ' + cmdstr;
+        exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF');
         // if returnCode <> 0;
         //   snd-msg 'sqlcod: ' + %char(sqlcod);
         //   snd-msg '--- Grant object authority error ---';
         // endif;
-        snd-msg '----- Record End -----';
-      else;
-        snd-msg '  --- Authority missing unexpected error ---';
+        // snd-msg 'Object authority compare finished.';
+        logtxt = ' ' + %trim(%char(cur_date)) + 
+            ' ' + %trim(%char(cur_time)) + 
+            ' ' + %trim(cur_sysnm) + 
+            ' ' + 'Object authority compare finished.';
+        exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                        trim(:logtxt),
+                                        OVERWRITE => 'APPEND',
+                                        END_OF_LINE => 'CRLF');
       endif;
     endif;
-
     exec sql fetch from c1 into :oalib,
                                   :oaname,
                                   :oatype,
@@ -476,9 +770,7 @@ dcl-proc find_chg_objaut;
                                   :oaref ;
 
   enddo;
-
   exec sql close c1;
-
 end-proc;
 
 dcl-proc build_aut_cmd;

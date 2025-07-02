@@ -161,13 +161,13 @@ dow sqlcod = 0;
         clear usraut;
       endif;
       // returnCode = syscmd(cmdstr);
+      // snd-msg '----- Finish User ' + %trim(username) + ' -----';
+      logtxt = '----- Finish User ' + %trim(username) + ' -----';
+      exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                        trim(:logtxt),
+                                        OVERWRITE => 'APPEND',
+                                        END_OF_LINE => 'CRLF');
     endif;
-    // snd-msg '----- Finish User ' + %trim(username) + ' -----';
-    logtxt = '----- Finish User ' + %trim(username) + ' -----';
-    exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
-                                  trim(:logtxt),
-                                  OVERWRITE => 'APPEND',
-                                  END_OF_LINE => 'CRLF');
   endif;
   exec sql fetch next from curusrlst into :username;    
 enddo;

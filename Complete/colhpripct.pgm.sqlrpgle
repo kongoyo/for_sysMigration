@@ -44,10 +44,24 @@ dcl-s new_ctlnm char(10);
 dcl-s new_hostnme1 char(50);
 dcl-s new_hostnme2 char(50);
 
-// 取得現行主機名稱
-exec sql 
-  values current server into :cur_sysnm;
+dcl-s ifsfnm char(200);
+dcl-s cur_date date;
+dcl-s cur_time time;
+dcl-s count int(10) inz(0);
+dcl-s logtxt char(200);
 
+exec sql values(current_date) into :cur_date;
+exec sql values(current_time) into :cur_time;
+exec sql values current server into :cur_sysnm;
+
+ifsfnm = '/home/qsecofr/kgi_log/colhprip_' + %trim(%char(cur_date)) + '.log';
+logtxt = 'Execution date/time: ' + %trim(%char(cur_date)) + ' ' + %trim(%char(cur_time));
+exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          END_OF_LINE => 'CRLF');
+// exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+//                           'Execution date/time: ' || :cur_date || ' ' || :cur_time,
+//                           END_OF_LINE => 'CRLF'); 
 
 // 取得新機主機名稱
 new_sysnm = 'AS081N' ;
@@ -86,7 +100,13 @@ new_ctlnm = %trimr(org_ctlnm) + 'N' ;
 new_hostnme1 = %trimr(org_sysnm) ;
 new_hostnme2 = %trimr(org_sysnm) + '.APPN.SNA.IBM.COM' ;
 
-snd-msg '--------------------------------------';
+// snd-msg '--------------------------------------';
+logtxt = '--------------------------------------';
+exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => '*APPEND',
+                          END_OF_LINE => 'CRLF');
+
 snd-msg '   New System Name     : ' + new_sysnm ;
 snd-msg '   Original System Name: ' + org_sysnm ;
 snd-msg '   New      IP address : ' + new_ip    ;
@@ -94,6 +114,11 @@ snd-msg '   Original IP address : ' + org_ip    ;
 snd-msg '   New         ctlname : ' + new_ctlnm ;
 snd-msg '   Original    ctlname : ' + org_ctlnm ;
 snd-msg '--------------------------------------';
+
+
+
+
+
 
 exec sql
   set transaction isolation level no commit ;
