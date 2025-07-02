@@ -45,16 +45,18 @@ dcl-s logtxt char(200);
 exec sql values current server into :cur_sysnm;
 exec sql values(current_date) into :cur_date;
 exec sql values(current_time) into :cur_time;
-ifsfnm = '/home/qsecofr/kgi_log/autcmp_' + %trim(%char(cur_date)) + '.log';
+ifsfnm = '/home/qsecofr/kgi_log/autcmp_' + %trim(%scanrpl('-' : '' : %char(cur_date))) + 
+         '_' + %trim(%scanrpl('.' : '' : %char(cur_time))) + '.log';
 // snd-msg '--------------------------------------------------';
 // This line is for testing and should be removed
 cur_sysnm = 'AS101N';
 // snd-msg ' Current SysName : ' + cur_sysnm;
 // snd-msg '--------------------------------------------------';
+// Make sure output file is empty to start
 exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                                   '',
                                   OVERWRITE => 'REPLACE',
-                                  END_OF_LINE => 'CRLF');
+                                  END_OF_LINE => 'NONE');
 logtxt = ' ' + %trim(%char(cur_date)) + 
          ' ' + %trim(%char(cur_time)) + 
          ' ' + %trim(cur_sysnm) + 
@@ -115,6 +117,14 @@ exec sql open liblst;
 exec sql fetch from liblst into :schema_name;
 dow sqlcod = 0;
   if sqlcod = 0;
+    logtxt = ' ' + %trim(%char(cur_date)) + 
+         ' ' + %trim(%char(cur_time)) + 
+         ' ' + %trim(cur_sysnm) + 
+         ' ' + '*** Process ' + %trim(schema_name) + ' ***';
+    exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                  trim(:logtxt),
+                                  OVERWRITE => 'APPEND',
+                                  END_OF_LINE => 'CRLF');
     exec sql declare objlst cursor for
         Select coalesce(objname,'*NONE') AS objname,
                coalesce(objtype,'*NONE') AS objtype,
@@ -125,7 +135,6 @@ dow sqlcod = 0;
                 object_schema => :schema_name,
                 objtypelist => '*ALL')
         );
-
     exec sql open objlst;
     exec sql fetch objlst into :objname, :objtype, :objlongschema, :save_volume;
     dow sqlcod = 0;
@@ -135,16 +144,22 @@ dow sqlcod = 0;
       //
       exec sql fetch objlst into  :objname, :objtype, :objlongschema, :save_volume;
     enddo;
-    exec sql
-      close objlst;
+    exec sql close objlst;
   endif;
   exec sql fetch from liblst into :schema_name;
 enddo;
 exec sql close liblst;
+logtxt = ' ' + %trim(%char(cur_date)) + 
+        ' ' + %trim(%char(cur_time)) + 
+        ' ' + %trim(cur_sysnm) + 
+        ' ' + 'Object authority compare finished.';
+exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                  trim(:logtxt),
+                                  OVERWRITE => 'APPEND',
+                                  END_OF_LINE => 'CRLF');
 
 *inlr = *on ;
 return ;
-
 
 dcl-proc find_chg_objaut;
   dcl-pi *n ;
@@ -208,10 +223,8 @@ dcl-proc find_chg_objaut;
   dcl-pr syscmd int(10) ExtProc('system');
     *n Pointer Value Options(*String);
   end-pr;
-
   dcl-s cmdstr varchar(512);
   dcl-s returnCode int(5);
-
   // Procedure Begin
   srclbnm = 'OAAS101N';     // KGI => 'DDSCINFO'
   // save_volume = 'F02Y25';   // KGI => 'XXXY25'
@@ -224,7 +237,6 @@ dcl-proc find_chg_objaut;
     srcobnm = 'OBJAUT' + %subst(%trim(save_volume) : 1 : 3 );
     srclbob = %trimr(srclbnm) + '.' + %trim(srcobnm);
   endif;
-
   // from_file
   stmt = 'select oalib, oaname, oatype, oausr, oaobja, oaown, oapgrp, oagrpn, oaopr, oaomgt, ' +
            'oaexs, oaread, oaadd, oaupd, oadlt, oaamgt, oaanam, oaexec, oaalt, oaref ' +
@@ -623,7 +635,7 @@ dcl-proc find_chg_objaut;
           logtxt = ' ' + %trim(%char(cur_date)) + 
                     ' ' + %trim(%char(cur_time)) + 
                     ' ' + %trim(cur_sysnm) + 
-                    ' ' + 'from_curr: ' + %trim(object_authority) +
+                    ' ' + '  from_curr: ' + %trim(object_authority) +
                   ',' + %trim(object_operational) + ',' + %trim(object_management) +
                   ',' + %trim(object_existence) +
                   ',' + %trim(data_read) + ',' + %trim(data_add) + ',' + %trim(data_update) +
@@ -652,14 +664,6 @@ dcl-proc find_chg_objaut;
           // endif;
           // snd-msg 'Object authority compare finished.';
         endif;
-        logtxt = ' ' + %trim(%char(cur_date)) + 
-                    ' ' + %trim(%char(cur_time)) + 
-                    ' ' + %trim(cur_sysnm) + 
-                    ' ' + 'Object authority compare finished.';
-        exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
-                                            trim(:logtxt),
-                                            OVERWRITE => 'APPEND',
-                                            END_OF_LINE => 'CRLF');
       elseif sqlcod = 100;
         if authorization_name = '' ;
           authorization_name = '<NULL>';
@@ -740,14 +744,6 @@ dcl-proc find_chg_objaut;
         //   snd-msg '--- Grant object authority error ---';
         // endif;
         // snd-msg 'Object authority compare finished.';
-        logtxt = ' ' + %trim(%char(cur_date)) + 
-            ' ' + %trim(%char(cur_time)) + 
-            ' ' + %trim(cur_sysnm) + 
-            ' ' + 'Object authority compare finished.';
-        exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
-                                        trim(:logtxt),
-                                        OVERWRITE => 'APPEND',
-                                        END_OF_LINE => 'CRLF');
       endif;
     endif;
     exec sql fetch from c1 into :oalib,
@@ -799,11 +795,7 @@ dcl-proc build_aut_cmd;
   dcl-s base_cmd varchar(20);
   dcl-s aut_list varchar(256) inz('');
 
-  if cmd_type = 'GRANT';
-    base_cmd = 'GRTOBJAUT';
-  else; // 'CHANGE'
-    base_cmd = 'CHGOBJAUT';
-  endif;
+  base_cmd = 'GRTOBJAUT';
 
   local_cmdstr = base_cmd + ' OBJ(' + %trim(p_oalib) + '/' + %trim(p_oaname) +
                  ') OBJTYPE(' + %trim(p_oatype) + ') USER(' + %trim(p_oausr) +

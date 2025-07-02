@@ -54,14 +54,19 @@ exec sql values(current_date) into :cur_date;
 exec sql values(current_time) into :cur_time;
 exec sql values current server into :cur_sysnm;
 
-ifsfnm = '/home/qsecofr/kgi_log/colhprip_' + %trim(%char(cur_date)) + '.log';
-logtxt = 'Execution date/time: ' + %trim(%char(cur_date)) + ' ' + %trim(%char(cur_time));
+ifsfnm = '/home/qsecofr/kgi_log/colhprip_' + %trim(%scanrpl('-' : '' : %char(cur_date))) + 
+         '_' + %trim(%scanrpl('.' : '' : %char(cur_time))) + '.log';
 exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
-                          trim(:logtxt),
-                          END_OF_LINE => 'CRLF');
-// exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
-//                           'Execution date/time: ' || :cur_date || ' ' || :cur_time,
-//                           END_OF_LINE => 'CRLF'); 
+                                  '',
+                                  OVERWRITE => 'REPLACE',
+                                  END_OF_LINE => 'NONE');
+logtxt = ' ' + %trim(%char(cur_date)) + 
+         ' ' + %trim(%char(cur_time)) + 
+         ' ' + %trim(cur_sysnm) + 
+         ' ' + 'Collect *HPRIP controller Info and System migration start.';
+exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                  trim(:logtxt),
+                                  END_OF_LINE => 'CRLF');
 
 // 取得新機主機名稱
 new_sysnm = 'AS081N' ;
@@ -90,8 +95,7 @@ exec sql
   where line_description = '*VIRTUALIP' and 
   internet_address like '%10.102%'
   order by internet_address 
-  fetch first 1 rows only;
-  
+  fetch first 1 rows only;  
 // 組成要修改的原機 ctld name
 org_ctlnm = 'TCP' + org_sysnm ;
 // 組成要刪除的新機 ctld name
@@ -99,27 +103,54 @@ new_ctlnm = %trimr(org_ctlnm) + 'N' ;
 // 組成要新增的原機 host table entry
 new_hostnme1 = %trimr(org_sysnm) ;
 new_hostnme2 = %trimr(org_sysnm) + '.APPN.SNA.IBM.COM' ;
-
 // snd-msg '--------------------------------------';
 logtxt = '--------------------------------------';
 exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                           trim(:logtxt),
-                          OVERWRITE => '*APPEND',
+                          OVERWRITE => 'APPEND',
                           END_OF_LINE => 'CRLF');
-
-snd-msg '   New System Name     : ' + new_sysnm ;
-snd-msg '   Original System Name: ' + org_sysnm ;
-snd-msg '   New      IP address : ' + new_ip    ;
-snd-msg '   Original IP address : ' + org_ip    ;
-snd-msg '   New         ctlname : ' + new_ctlnm ;
-snd-msg '   Original    ctlname : ' + org_ctlnm ;
-snd-msg '--------------------------------------';
-
-
-
-
-
-
+// snd-msg '   New System Name     : ' + new_sysnm ;
+logtxt = '   New System Name     : ' + new_sysnm ;
+exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');
+// snd-msg '   Original System Name: ' + org_sysnm ;
+logtxt = '   Original System Name: ' + org_sysnm ;
+exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');
+// snd-msg '   New      IP address : ' + new_ip    ;
+logtxt = '   New      IP address : ' + new_ip    ;
+exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');
+// snd-msg '   Original IP address : ' + org_ip    ;
+logtxt = '   Original IP address : ' + org_ip    ;
+exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');
+// snd-msg '   New         ctlname : ' + new_ctlnm ;
+logtxt = '   New         ctlname : ' + new_ctlnm ;
+exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');
+// snd-msg '   Original    ctlname : ' + org_ctlnm ;
+logtxt = '   Original    ctlname : ' + org_ctlnm ;
+exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');
+// snd-msg '--------------------------------------';
+logtxt = '--------------------------------------';
+exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');
 exec sql
   set transaction isolation level no commit ;
 
@@ -179,7 +210,6 @@ dow sqlcod = 0;
       startPos = %scan('+':currentParsedLine);
       currentParsedLine = %subst(currentParsedLine : 1 : startPos); 
       commandEndThisLine = *off; 
-    else;
     endif;
     if isNewCommandStart and %len(%trim(pendingCommand)) > 0;
       ProcessCommand(pendingCommand); 
@@ -191,12 +221,10 @@ dow sqlcod = 0;
     endif;
     if %len(%trimr(pendingCommand)) > %len(pendingCommand);
       pendingCommand = %subst(pendingCommand:1:%len(pendingCommand));
-    else;
     endif;
     if commandEndThisLine and %len(%trim(pendingCommand)) > 0;
       ProcessCommand(pendingCommand); 
       clear pendingCommand;
-    else;
     endif;
 
     exec sql
@@ -208,8 +236,7 @@ dow sqlcod = 0;
       ProcessCommand(pendingCommand);
       clear pendingCommand;
     endif;
-  else ;
-    snd-msg 'ProcessCommand error with sqlcod : ' + %char(sqlcod);
+  else;
   endif; 
 enddo; 
 
@@ -221,28 +248,36 @@ exec sql
   declare tcpctld cursor for
     select * 
       from qtemp.cfgtbl 
-      where trim(cfgtbl.ctld) like 'TCP%';
-
-exec sql 
-  open tcpctld;
-
-exec sql
-  fetch from tcpctld into :cfgtbl.ctld,
-                          :cfgtbl.linktype,
-                          :cfgtbl.lclintneta,
-                          :cfgtbl.rmtintneta,
-                          :cfgtbl.rmtcpname ;
-
+      where trim(cfgtbl.ctld) like 'TCP%'
+      order by cfgtbl.ctld;
+exec sql open tcpctld;
+exec sql fetch from tcpctld into :cfgtbl.ctld, :cfgtbl.linktype, :cfgtbl.lclintneta,
+                                 :cfgtbl.rmtintneta, :cfgtbl.rmtcpname ;
 dow sqlcod = 0 ;
   if sqlcod = 0 ;
-    snd-msg '--------------------------------------';
-    snd-msg '** Target-System: ' + %trim(cfgtbl.rmtcpname);
-    snd-msg '--------------------------------------';
+    // snd-msg '--------------------------------------';
+    logtxt = '--------------------------------------';
+    exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');
+    // snd-msg '** Target-System: ' + %trim(cfgtbl.rmtcpname);
+    logtxt = '** Target-System: ' + %trim(cfgtbl.rmtcpname);
+    exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');
+    // snd-msg '--------------------------------------';
+    logtxt = '--------------------------------------';
+    exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');
     RemoteCommand(%trim(cfgtbl.rmtcpname) : org_ctlnm);
-  elseif sqlcod = 100;
-    snd-msg 'Valid record not found.';
-  else;
-    snd-msg 'Unknown error.';
+  // elseif sqlcod = 100;
+  //   snd-msg 'Valid record not found.';
+  // else;
+  //   snd-msg 'Unknown error.';
   endif;
 
   exec sql
@@ -255,6 +290,15 @@ enddo;
 
 exec sql
   close tcpctld;
+
+logtxt = ' ' + %trim(%char(cur_date)) + 
+         ' ' + %trim(%char(cur_time)) + 
+         ' ' + %trim(cur_sysnm) + 
+         ' ' + 'Collect *HPRIP controller Info and System migration finished.';
+exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                  trim(:logtxt),
+                                  OVERWRITE => 'APPEND',
+                                  END_OF_LINE => 'CRLF');
 
 *inlr = *on;
 return;
@@ -278,7 +322,12 @@ dcl-proc RemoteCommand ;
                 'RMTLOCNAME(' + %trim(rmtsys) + ' *IP) ' +
                 'RMTUSER(' + %trim(usrvar) + ') ' + 
                 'RMTPWD(' + %trim(pwdvar) + ')' ;
-    snd-msg Incmdstr ;
+    // snd-msg Incmdstr ;
+    logtxt = Incmdstr ;
+    exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');
     // returnCode = syscmd(cmdstr);
     // If ReturnCode <> 0;
     //   snd-msg 'Command   : ' + cmdstr ;
@@ -295,7 +344,12 @@ dcl-proc RemoteCommand ;
              'RMTLOCNAME(' + %trim(rmtsys) + ' *IP) ' + 
              'RMTUSER(' + %trim(usrvar) + ') ' + 
              'RMTPWD(' + %trim(pwdvar) + ')' ;
-    snd-msg Incmdstr ;
+    // snd-msg Incmdstr ;
+    logtxt = Incmdstr ;
+    exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');
     // snd-msg cmdstr ;
     // returnCode = syscmd(cmdstr);
     // If ReturnCode <> 0;
@@ -312,7 +366,12 @@ dcl-proc RemoteCommand ;
            'RMTLOCNAME(' + %trim(rmtsys) + ' *IP) ' + 
            'RMTUSER(' + %trim(usrvar) + ') ' + 
            'RMTPWD(' + %trim(pwdvar) + ')' ;
-    snd-msg Incmdstr ;
+    // snd-msg Incmdstr ;
+    logtxt = Incmdstr ;
+    exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');
     // snd-msg cmdstr ;
     // returnCode = syscmd(cmdstr);
     // If ReturnCode <> 0;
@@ -330,7 +389,12 @@ dcl-proc RemoteCommand ;
               'RMTLOCNAME(' + %trim(rmtsys) + ' *IP) ' +
               'RMTUSER(' + %trim(usrvar) + ') ' + 
               'RMTPWD(' + %trim(pwdvar) + ')' ;
-  snd-msg Incmdstr ;
+  // snd-msg Incmdstr ;
+  logtxt = Incmdstr ;
+  exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');
   // returnCode = syscmd(cmdstr);
   // If ReturnCode <> 0;
   //   snd-msg 'Command   : ' + cmdstr ;
@@ -348,7 +412,12 @@ dcl-proc RemoteCommand ;
            'RMTLOCNAME(' + %trim(rmtsys) + ' *IP) ' + 
            'RMTUSER(' + %trim(usrvar) + ') ' + 
            'RMTPWD(' + %trim(pwdvar) + ')' ;
-  snd-msg Incmdstr ;
+  // snd-msg Incmdstr ;
+  logtxt = Incmdstr ;
+  exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');
   // snd-msg cmdstr ;
   // returnCode = syscmd(cmdstr);
   // If ReturnCode <> 0;
@@ -366,7 +435,12 @@ dcl-proc RemoteCommand ;
            'RMTLOCNAME(' + %trim(rmtsys) + ' *IP) ' + 
            'RMTUSER(' + %trim(usrvar) + ') ' + 
            'RMTPWD(' + %trim(pwdvar) + ')' ;
-  snd-msg Incmdstr ;
+  // snd-msg Incmdstr ;
+  logtxt = Incmdstr ;
+  exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');
   // snd-msg cmdstr ;
   // returnCode = syscmd(cmdstr);
   // If ReturnCode <> 0;
@@ -383,7 +457,12 @@ dcl-proc RemoteCommand ;
          'RMTLOCNAME(' + %trim(rmtsys) + ' *IP) ' + 
          'RMTUSER(' + %trim(usrvar) + ') ' + 
          'RMTPWD(' + %trim(pwdvar) + ')' ;
-  snd-msg Incmdstr ;
+  // snd-msg Incmdstr ;
+  logtxt = Incmdstr ;
+  exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');
   // snd-msg cmdstr ;
     // returnCode = syscmd(cmdstr);
     // If ReturnCode <> 0;
