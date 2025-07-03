@@ -26,8 +26,9 @@ exec sql values(current_date) into :cur_date;
 exec sql values(current_time) into :cur_time;
 ifsfnm = '/home/qsecofr/kgi_log/addmigscd_' + %trim(%scanrpl('-' : '' : %char(cur_date))) + 
          '_' + %trim(%scanrpl('.' : '' : %char(cur_time))) + '.log';
+clear logtxt;
 exec sql call QSYS2.IFS_WRITE(trim(:ifsfnm),
-                                  '',
+                                  trim(:logtxt),
                                   OVERWRITE => 'REPLACE',
                                   FILE_CCSID => '950',
                                   END_OF_LINE => 'NONE');
