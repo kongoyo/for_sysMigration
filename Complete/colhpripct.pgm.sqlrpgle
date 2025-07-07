@@ -1,24 +1,16 @@
 **free
 ctl-opt option(*srcstmt) dftactgrp(*no) ; 
-
 dcl-ds cfgsrc qualified;
   srcseq zoned(6);
   srcdat zoned(6);
   srcdta char(120);
 end-ds;
-
 dcl-ds cfgtbl qualified;
   ctld char(10);
   linktype char(10);
   rmtintneta char(15);
   lclintneta char(15);
   rmtcpname char(10);
-end-ds;
-
-dcl-ds tcphte qualified;
-  ip_addr char(15);
-  hostnme1 varchar(50);
-  hostnme2 varchar(50);
 end-ds;
 
 dcl-s isNewCommandStart ind inz(*off);
@@ -33,6 +25,8 @@ end-pr;
 dcl-s cmdstr char(100);
 dcl-s returnCode int(3);
 
+dcl-s stmt char(512);
+
 dcl-s cur_sysnm char(8);
 dcl-s N_pos int(5);
 dcl-s org_sysnm char(8);
@@ -43,11 +37,13 @@ dcl-s org_ctlnm char(10);
 dcl-s new_ctlnm char(10);
 dcl-s new_hostnme1 char(50);
 dcl-s new_hostnme2 char(50);
+dcl-s lindnm char(10);
+dcl-s ipaddr varchar(45);
 
 dcl-s ifsfnm char(200);
 dcl-s cur_date date;
 dcl-s cur_time time;
-dcl-s count int(10) inz(0);
+// dcl-s count int(10) inz(0);
 dcl-s logtxt char(200);
 
 exec sql values(current_date) into :cur_date;
@@ -67,17 +63,14 @@ logtxt = ' ' + %trim(%char(cur_date)) +
 exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                                   trim(:logtxt),
                                   END_OF_LINE => 'CRLF');
-
 // 取得新機主機名稱
 new_sysnm = 'AS081N' ;
 // FOR_KGI : new_sysnm = cur_sysnm ; 
-
 // 取得原機主機名稱
 n_pos = %scan('N' : %UPPER(new_sysnm)) ;
 if n_pos > 0;
   org_sysnm = %subst( new_sysnm : 1 : n_pos - 1 ) ;
 endif;
-
 // 取得原機 IP 位址
 exec sql 
   select internet
@@ -86,7 +79,6 @@ exec sql
   where hostnme1 = :org_sysnm or 
         hostnme2 = :org_sysnm 
   fetch first 1 rows only;
-
 // 取得新機 IP 位址
 exec sql 
   select internet_address
@@ -157,24 +149,43 @@ exec sql
 cmdstr = 'DLTOBJ OBJ(QTEMP/CFGSRC) OBJTYPE(*FILE)';
 returnCode = syscmd(cmdstr);
 if returnCode <> 0;
-  snd-msg '-- DLTOBJ QTEMP/CFGSRC error ( This error can be ignored ) --';
+  // snd-msg '-- DLTOBJ QTEMP/CFGSRC error ( This error can be ignored ) --';
+  logtxt = '-- DLTOBJ QTEMP/CFGSRC error ( This error can be ignored ) --';
+  exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');  
 endif;
 cmdstr = 'CRTSRCPF FILE(QTEMP/CFGSRC) IGCDTA(*YES)';
 returnCode = syscmd(cmdstr);
 if returnCode <> 0;
-  snd-msg '-- CRTSRCPF QTEMP/CFGSRC error --';
+  // snd-msg '-- CRTSRCPF QTEMP/CFGSRC error --';
+  logtxt = '-- CRTSRCPF QTEMP/CFGSRC error --';
+  exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');  
 endif;
 cmdstr = 'RTVCFGSRC CFGD(*ALL) CFGTYPE(*CTLD) SRCFILE(QTEMP/CFGSRC)';
 returnCode = syscmd(cmdstr);
 if returnCode <> 0;
-  snd-msg '-- RTVCFGSRC QTEMP/CFGSRC error --';
+  // snd-msg '-- RTVCFGSRC QTEMP/CFGSRC error --';
+  logtxt = '-- RTVCFGSRC QTEMP/CFGSRC error --';
+  exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');  
 endif;
 cmdstr = 'DLTOBJ OBJ(QTEMP/CFGTBL) OBJTYPE(*FILE)';
 returnCode = syscmd(cmdstr);
 if returnCode <> 0;
-  snd-msg '-- DLTOBJ QTEMP/CFGTBL error ( This error can be ignored ) --';
+  // snd-msg '-- DLTOBJ QTEMP/CFGTBL error ( This error can be ignored ) --';
+  logtxt = '-- DLTOBJ QTEMP/CFGTBL error ( This error can be ignored ) --';
+  exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');
 endif;
-
 exec sql
   create table qtemp.cfgtbl (
     ctld varchar(10),           // Controller Name varchar(10)
@@ -183,21 +194,17 @@ exec sql
     lclintneta varchar(15),     // Local  IP       varchar(15)
     rmtcpname varchar(10)       // Remote CP Name  varchar(10)
    );
-
 exec sql
   declare cfgsrc cursor for
     select srcseq, srcdat, srcdta 
     from qtemp.cfgsrc 
     order by srcseq;
-
 exec sql
   open cfgsrc;
-
 exec sql
   fetch next from cfgsrc into :cfgsrc.srcseq, 
                               :cfgsrc.srcdat, 
                               :cfgsrc.srcdta ;
-
 dow sqlcod = 0;
   if sqlcod = 0;
     currentParsedLine = %trimr(cfgsrc.srcdta); 
@@ -226,7 +233,7 @@ dow sqlcod = 0;
       ProcessCommand(pendingCommand); 
       clear pendingCommand;
     endif;
-
+    clear cfgsrc;
     exec sql
       fetch next from cfgsrc into :cfgsrc.srcseq, 
                                   :cfgsrc.srcdat, 
@@ -239,10 +246,8 @@ dow sqlcod = 0;
   else;
   endif; 
 enddo; 
-
 exec sql
   close cfgsrc;
-
 // 只篩選 TCP 開頭的 CTLD
 exec sql  
   declare tcpctld cursor for
@@ -279,7 +284,6 @@ dow sqlcod = 0 ;
   // else;
   //   snd-msg 'Unknown error.';
   endif;
-
   exec sql
     fetch from tcpctld into :cfgtbl.ctld,
                             :cfgtbl.linktype,
@@ -287,10 +291,108 @@ dow sqlcod = 0 ;
                             :cfgtbl.rmtintneta,
                             :cfgtbl.rmtcpname ;
 enddo;
+exec sql close tcpctld;
+// execute local command
+    // snd-msg '--------------------------------------';
+    logtxt = '--------------------------------------';
+    exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');
+    // snd-msg '** Target-System: ' + %trim(cfgtbl.rmtcpname);
+    logtxt = '** Execute Local Command: ';
+    exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');
+    // snd-msg '--------------------------------------';
+    logtxt = '--------------------------------------';
+    exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');
+// set LIND ONLINE(*NO)
+clear stmt;
+stmt = 'Select objname' +
+       ' From Table (' +
+       'qsys2.object_statistics(object_schema => ''*ALL'', objtypelist => ''*LIND''))' +
+       ' Where objattribute = ''ETH''';
+      //  'Where objname like ''CLELN%'' and objattribute = ''ETH''';
+exec sql prepare prelindlst from :stmt;
+exec sql declare lindlst cursor for prelindlst;
+exec sql open lindlst;
+exec sql fetch from lindlst into :lindnm;
+dow sqlcod = 0;
+  if sqlcod = 0;
+    cmdstr = 'CHGLINETH LIND(' + %trim(lindnm) + ') ONLINE(*YES)';
+    returnCode = syscmd(cmdstr);
+    logtxt = 'Executed command: ' + %trim(cmdstr);
+    exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');
+    if returnCode <> 0;
+      logtxt = 'Failed to run command: ' + %trim(cmdstr);
+      exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');
+    endif;
+  endif;
+  clear lindnm;
+  exec sql fetch from lindlst into :lindnm;
+enddo;
+exec sql close lindlst;
+// Set IP address ONLINE(*NO)
+clear stmt;
+stmt = 'Select internet_address' +
+       ' From qsys2.netstat_interface_info' +
+       ' Where connection_type = ''IPV4''' +
+       ' And (internet_address Like ''10.10.%''' +
+       ' Or internet_address Like ''172.16.%''' +
+       ' Or internet_address Like ''192.168.%'')';
+exec sql prepare preiplst from :stmt;
+exec sql declare iplst cursor for preiplst;
+exec sql open iplst;
+exec sql fetch from iplst into :ipaddr;
+dow sqlcod = 0;
+  if sqlcod = 0;
+    // Change IP address ONLINE(*NO)
+    cmdstr = 'CHGTCPIFC INTNETADR(''' + %trim(ipaddr) + ''') AUTOSTART(*YES)';
+    returnCode = syscmd(cmdstr);
+    logtxt = 'Executed command: ' + %trim(cmdstr);
+    exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');    
+    if returnCode <> 0;
+      logtxt = 'Failed to run command: ' + %trim(cmdstr);
+      exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');
+    endif;
+    // Start IP address 
+    cmdstr = 'STRTCPIFC INTNETADR(''' + %trim(ipaddr) + ''')';
+    returnCode = syscmd(cmdstr);
+    logtxt = 'Executed command: ' + %trim(cmdstr);
+    exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');    
+    if returnCode <> 0;
+      logtxt = 'Failed to run command: ' + %trim(cmdstr);
+      exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                          trim(:logtxt),
+                          OVERWRITE => 'APPEND',
+                          END_OF_LINE => 'CRLF');
+    endif;
 
-exec sql
-  close tcpctld;
-
+  endif;
+  clear ipaddr;
+  exec sql fetch from iplst into :ipaddr; 
+enddo;
+exec sql close iplst;
 logtxt = ' ' + %trim(%char(cur_date)) + 
          ' ' + %trim(%char(cur_time)) + 
          ' ' + %trim(cur_sysnm) + 
@@ -299,7 +401,6 @@ exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                                   trim(:logtxt),
                                   OVERWRITE => 'APPEND',
                                   END_OF_LINE => 'CRLF');
-
 *inlr = *on;
 return;
 
@@ -472,7 +573,6 @@ dcl-proc RemoteCommand ;
     //   return ;
     // endif;
 end-proc;
-
 dcl-proc ProcessCommand;
   dcl-pi ProcessCommand;
     inCommand char(1000) const; 
