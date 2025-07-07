@@ -96,49 +96,73 @@ new_ctlnm = %trimr(org_ctlnm) + 'N' ;
 new_hostnme1 = %trimr(org_sysnm) ;
 new_hostnme2 = %trimr(org_sysnm) + '.APPN.SNA.IBM.COM' ;
 // snd-msg '--------------------------------------';
-logtxt = '--------------------------------------';
+logtxt = ' ' + %trim(%char(cur_date)) + 
+         ' ' + %trim(%char(cur_time)) + 
+         ' ' + %trim(cur_sysnm) + 
+         ' ' + '--------------------------------------';
 exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                           trim(:logtxt),
                           OVERWRITE => 'APPEND',
                           END_OF_LINE => 'CRLF');
 // snd-msg '   New System Name     : ' + new_sysnm ;
-logtxt = '   New System Name     : ' + new_sysnm ;
+logtxt = ' ' + %trim(%char(cur_date)) + 
+         ' ' + %trim(%char(cur_time)) + 
+         ' ' + %trim(cur_sysnm) + 
+         ' ' + '   New System Name     : ' + new_sysnm ;
 exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                           trim(:logtxt),
                           OVERWRITE => 'APPEND',
                           END_OF_LINE => 'CRLF');
 // snd-msg '   Original System Name: ' + org_sysnm ;
-logtxt = '   Original System Name: ' + org_sysnm ;
+logtxt = ' ' + %trim(%char(cur_date)) + 
+         ' ' + %trim(%char(cur_time)) + 
+         ' ' + %trim(cur_sysnm) + 
+         ' ' + '   Original System Name: ' + org_sysnm ;
 exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                           trim(:logtxt),
                           OVERWRITE => 'APPEND',
                           END_OF_LINE => 'CRLF');
 // snd-msg '   New      IP address : ' + new_ip    ;
-logtxt = '   New      IP address : ' + new_ip    ;
+logtxt = ' ' + %trim(%char(cur_date)) + 
+         ' ' + %trim(%char(cur_time)) + 
+         ' ' + %trim(cur_sysnm) + 
+         ' ' + '   New      IP address : ' + new_ip    ;
 exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                           trim(:logtxt),
                           OVERWRITE => 'APPEND',
                           END_OF_LINE => 'CRLF');
 // snd-msg '   Original IP address : ' + org_ip    ;
-logtxt = '   Original IP address : ' + org_ip    ;
+logtxt = ' ' + %trim(%char(cur_date)) + 
+         ' ' + %trim(%char(cur_time)) + 
+         ' ' + %trim(cur_sysnm) + 
+         ' ' + '   Original IP address : ' + org_ip    ;
 exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                           trim(:logtxt),
                           OVERWRITE => 'APPEND',
                           END_OF_LINE => 'CRLF');
 // snd-msg '   New         ctlname : ' + new_ctlnm ;
-logtxt = '   New         ctlname : ' + new_ctlnm ;
+logtxt = ' ' + %trim(%char(cur_date)) + 
+         ' ' + %trim(%char(cur_time)) + 
+         ' ' + %trim(cur_sysnm) + 
+         ' ' + '   New         ctlname : ' + new_ctlnm ;
 exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                           trim(:logtxt),
                           OVERWRITE => 'APPEND',
                           END_OF_LINE => 'CRLF');
 // snd-msg '   Original    ctlname : ' + org_ctlnm ;
-logtxt = '   Original    ctlname : ' + org_ctlnm ;
+logtxt = ' ' + %trim(%char(cur_date)) + 
+         ' ' + %trim(%char(cur_time)) + 
+         ' ' + %trim(cur_sysnm) + 
+         ' ' + '   Original    ctlname : ' + org_ctlnm ;
 exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                           trim(:logtxt),
                           OVERWRITE => 'APPEND',
                           END_OF_LINE => 'CRLF');
 // snd-msg '--------------------------------------';
-logtxt = '--------------------------------------';
+logtxt = ' ' + %trim(%char(cur_date)) + 
+         ' ' + %trim(%char(cur_time)) + 
+         ' ' + %trim(cur_sysnm) + 
+         ' ' + '--------------------------------------';
 exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                           trim(:logtxt),
                           OVERWRITE => 'APPEND',
@@ -150,7 +174,10 @@ cmdstr = 'DLTOBJ OBJ(QTEMP/CFGSRC) OBJTYPE(*FILE)';
 returnCode = syscmd(cmdstr);
 if returnCode <> 0;
   // snd-msg '-- DLTOBJ QTEMP/CFGSRC error ( This error can be ignored ) --';
-  logtxt = '-- DLTOBJ QTEMP/CFGSRC error ( This error can be ignored ) --';
+  logtxt = ' ' + %trim(%char(cur_date)) + 
+         ' ' + %trim(%char(cur_time)) + 
+         ' ' + %trim(cur_sysnm) + 
+         ' ' + '-- DLTOBJ QTEMP/CFGSRC error ( This error can be ignored ) --';
   exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                           trim(:logtxt),
                           OVERWRITE => 'APPEND',
@@ -160,7 +187,10 @@ cmdstr = 'CRTSRCPF FILE(QTEMP/CFGSRC) IGCDTA(*YES)';
 returnCode = syscmd(cmdstr);
 if returnCode <> 0;
   // snd-msg '-- CRTSRCPF QTEMP/CFGSRC error --';
-  logtxt = '-- CRTSRCPF QTEMP/CFGSRC error --';
+  logtxt = ' ' + %trim(%char(cur_date)) + 
+         ' ' + %trim(%char(cur_time)) + 
+         ' ' + %trim(cur_sysnm) + 
+         ' ' + '-- CRTSRCPF QTEMP/CFGSRC error --';
   exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                           trim(:logtxt),
                           OVERWRITE => 'APPEND',
@@ -170,7 +200,10 @@ cmdstr = 'RTVCFGSRC CFGD(*ALL) CFGTYPE(*CTLD) SRCFILE(QTEMP/CFGSRC)';
 returnCode = syscmd(cmdstr);
 if returnCode <> 0;
   // snd-msg '-- RTVCFGSRC QTEMP/CFGSRC error --';
-  logtxt = '-- RTVCFGSRC QTEMP/CFGSRC error --';
+  logtxt = ' ' + %trim(%char(cur_date)) + 
+         ' ' + %trim(%char(cur_time)) + 
+         ' ' + %trim(cur_sysnm) + 
+         ' ' + '-- RTVCFGSRC QTEMP/CFGSRC error --';
   exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                           trim(:logtxt),
                           OVERWRITE => 'APPEND',
@@ -180,7 +213,10 @@ cmdstr = 'DLTOBJ OBJ(QTEMP/CFGTBL) OBJTYPE(*FILE)';
 returnCode = syscmd(cmdstr);
 if returnCode <> 0;
   // snd-msg '-- DLTOBJ QTEMP/CFGTBL error ( This error can be ignored ) --';
-  logtxt = '-- DLTOBJ QTEMP/CFGTBL error ( This error can be ignored ) --';
+  logtxt = ' ' + %trim(%char(cur_date)) + 
+         ' ' + %trim(%char(cur_time)) + 
+         ' ' + %trim(cur_sysnm) + 
+         ' ' + '-- DLTOBJ QTEMP/CFGTBL error ( This error can be ignored ) --';
   exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                           trim(:logtxt),
                           OVERWRITE => 'APPEND',
@@ -261,19 +297,28 @@ exec sql fetch from tcpctld into :cfgtbl.ctld, :cfgtbl.linktype, :cfgtbl.lclintn
 dow sqlcod = 0 ;
   if sqlcod = 0 ;
     // snd-msg '--------------------------------------';
-    logtxt = '--------------------------------------';
+    logtxt = ' ' + %trim(%char(cur_date)) + 
+         ' ' + %trim(%char(cur_time)) + 
+         ' ' + %trim(cur_sysnm) + 
+         ' ' + '--------------------------------------';
     exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                           trim(:logtxt),
                           OVERWRITE => 'APPEND',
                           END_OF_LINE => 'CRLF');
     // snd-msg '** Target-System: ' + %trim(cfgtbl.rmtcpname);
-    logtxt = '** Target-System: ' + %trim(cfgtbl.rmtcpname);
+    logtxt = ' ' + %trim(%char(cur_date)) + 
+         ' ' + %trim(%char(cur_time)) + 
+         ' ' + %trim(cur_sysnm) + 
+         ' ' + '** Target-System: ' + %trim(cfgtbl.rmtcpname);
     exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                           trim(:logtxt),
                           OVERWRITE => 'APPEND',
                           END_OF_LINE => 'CRLF');
     // snd-msg '--------------------------------------';
-    logtxt = '--------------------------------------';
+    logtxt = ' ' + %trim(%char(cur_date)) + 
+         ' ' + %trim(%char(cur_time)) + 
+         ' ' + %trim(cur_sysnm) + 
+         ' ' + '--------------------------------------';
     exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                           trim(:logtxt),
                           OVERWRITE => 'APPEND',
@@ -294,19 +339,28 @@ enddo;
 exec sql close tcpctld;
 // execute local command
     // snd-msg '--------------------------------------';
-    logtxt = '--------------------------------------';
+    logtxt = ' ' + %trim(%char(cur_date)) + 
+         ' ' + %trim(%char(cur_time)) + 
+         ' ' + %trim(cur_sysnm) + 
+         ' ' + '--------------------------------------';
     exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                           trim(:logtxt),
                           OVERWRITE => 'APPEND',
                           END_OF_LINE => 'CRLF');
     // snd-msg '** Target-System: ' + %trim(cfgtbl.rmtcpname);
-    logtxt = '** Execute Local Command: ';
+    logtxt = ' ' + %trim(%char(cur_date)) + 
+         ' ' + %trim(%char(cur_time)) + 
+         ' ' + %trim(cur_sysnm) + 
+         ' ' + '** Execute Local Command: ';
     exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                           trim(:logtxt),
                           OVERWRITE => 'APPEND',
                           END_OF_LINE => 'CRLF');
     // snd-msg '--------------------------------------';
-    logtxt = '--------------------------------------';
+    logtxt = ' ' + %trim(%char(cur_date)) + 
+         ' ' + %trim(%char(cur_time)) + 
+         ' ' + %trim(cur_sysnm) + 
+         ' ' + '--------------------------------------';
     exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                           trim(:logtxt),
                           OVERWRITE => 'APPEND',
@@ -332,7 +386,10 @@ dow sqlcod = 0;
                           OVERWRITE => 'APPEND',
                           END_OF_LINE => 'CRLF');
     if returnCode <> 0;
-      logtxt = 'Failed to run command: ' + %trim(cmdstr);
+      logtxt = ' ' + %trim(%char(cur_date)) + 
+         ' ' + %trim(%char(cur_time)) + 
+         ' ' + %trim(cur_sysnm) + 
+         ' ' + 'Failed to run command: ' + %trim(cmdstr);
       exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                           trim(:logtxt),
                           OVERWRITE => 'APPEND',
@@ -366,7 +423,10 @@ dow sqlcod = 0;
                           OVERWRITE => 'APPEND',
                           END_OF_LINE => 'CRLF');    
     if returnCode <> 0;
-      logtxt = 'Failed to run command: ' + %trim(cmdstr);
+      logtxt = ' ' + %trim(%char(cur_date)) + 
+         ' ' + %trim(%char(cur_time)) + 
+         ' ' + %trim(cur_sysnm) + 
+         ' ' + 'Failed to run command: ' + %trim(cmdstr);
       exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                           trim(:logtxt),
                           OVERWRITE => 'APPEND',
@@ -381,7 +441,10 @@ dow sqlcod = 0;
                           OVERWRITE => 'APPEND',
                           END_OF_LINE => 'CRLF');    
     if returnCode <> 0;
-      logtxt = 'Failed to run command: ' + %trim(cmdstr);
+      logtxt = ' ' + %trim(%char(cur_date)) + 
+         ' ' + %trim(%char(cur_time)) + 
+         ' ' + %trim(cur_sysnm) + 
+         ' ' + 'Failed to run command: ' + %trim(cmdstr);
       exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                           trim(:logtxt),
                           OVERWRITE => 'APPEND',
