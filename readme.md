@@ -7,7 +7,7 @@
 4. 拆解 CFGSRC
 5. 刪除 QTEMP/CFGTBL
 6. 建立 QTEMP/CFGTBL
-7. 將拆解資料寫入 QTEMP/CFGTBL
+7. 寫入 QTEMP/CFGTBL
 
 ## rstnpusr.sqlrpgle
 1. 查詢現行主機上 no_password_indicator 為 true 的使用者並產生表格 QTEMP/NPUSR
