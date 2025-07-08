@@ -87,30 +87,30 @@ dow sqlcod = 0;
               objtypelist => '*USRPRF', 
               object_name => trim(:username))) ;  
       // snd-msg '  SQL code   : ' + %char(sqlcod);
-      logtxt = ' ' + %trim(%char(cur_date)) + 
-         ' ' + %trim(%char(cur_time)) + 
-         ' ' + %trim(cur_sysnm) + 
-         ' ' + '  SQL code   : ' + %char(sqlcod);
-      exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
-                                        trim(:logtxt),
-                                        OVERWRITE => 'APPEND',
-                                        END_OF_LINE => 'CRLF'); 
-
+      // logtxt = ' ' + %trim(%char(cur_date)) + 
+      //    ' ' + %trim(%char(cur_time)) + 
+      //    ' ' + %trim(cur_sysnm) + 
+      //    ' ' + '  SQL code   : ' + %char(sqlcod);
+      // exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+      //                                   trim(:logtxt),
+      //                                   OVERWRITE => 'APPEND',
+      //                                   END_OF_LINE => 'CRLF'); 
       // Action section
       if sqlcod = 0 ;
-
+        if %trim(usrsavdev.save_volume) <> '';
         // Restore *usrprf
-        cmdstr = 'RSTUSRPRF DEV(' + %trim(tapdev) +
+          cmdstr = 'RSTUSRPRF DEV(' + %trim(tapdev) +
               ') USRPRF(' + %trim(usrsavdev.objname) +
               ') VOL(' + %trim(usrsavdev.save_volume) +
               ') SEQNBR(' + %trim(%char(usrsavdev.save_seqnum)) +
               ') ALWOBJDIF(*ALL) SECDTA(*USRPRF)';
         // snd-msg '1st Command: ' + %trim(cmdstr);
-        logtxt = ' ' + %trim(%char(cur_date)) + 
+          exec sql call qsys2.qcmdexc(:cmdstr);
+          logtxt = ' ' + %trim(%char(cur_date)) + 
          ' ' + %trim(%char(cur_time)) + 
          ' ' + %trim(cur_sysnm) + 
          ' ' + '1st Command: ' + %trim(cmdstr);
-        exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                                           trim(:logtxt),
                                           OVERWRITE => 'APPEND',
                                           END_OF_LINE => 'CRLF'); 
@@ -121,17 +121,18 @@ dow sqlcod = 0;
         //   snd-msg '--- Restore *usrprf error ---';
         // endif;
         // Restore *pvtaut
-        cmdstr = 'RSTUSRPRF DEV(' + %trim(tapdev) +
+          cmdstr = 'RSTUSRPRF DEV(' + %trim(tapdev) +
               ') USRPRF(' + %trim(usrsavdev.objname) +
               ') VOL(' + %trim(usrsavdev.save_volume) +
               ') SEQNBR(' + %trim(%char(usrsavdev.save_seqnum)) +
               ') ALWOBJDIF(*ALL) SECDTA(*PVTAUT)';
         // snd-msg '2nd Command: ' + %trim(cmdstr);
-        logtxt = ' ' + %trim(%char(cur_date)) + 
+          exec sql call qsys2.qcmdexc(:cmdstr);
+          logtxt = ' ' + %trim(%char(cur_date)) + 
          ' ' + %trim(%char(cur_time)) + 
          ' ' + %trim(cur_sysnm) + 
          ' ' + '2nd Command: ' + %trim(cmdstr);
-        exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                                           trim(:logtxt),
                                           OVERWRITE => 'APPEND',
                                           END_OF_LINE => 'CRLF'); 
@@ -142,17 +143,18 @@ dow sqlcod = 0;
         //   snd-msg '--- Restore *pvtaut error ---';
         // endif;
         // Restore *pwdgrp
-        cmdstr = 'RSTUSRPRF DEV(' + %trim(tapdev) +
+          cmdstr = 'RSTUSRPRF DEV(' + %trim(tapdev) +
               ') USRPRF(' + %trim(usrsavdev.objname) +
               ') VOL(' + %trim(usrsavdev.save_volume) +
               ') SEQNBR(' + %trim(%char(usrsavdev.save_seqnum)) +
               ') ALWOBJDIF(*ALL) SECDTA(*PWDGRP)';
         // snd-msg '3rd Command: ' + %trim(cmdstr);
-        logtxt = ' ' + %trim(%char(cur_date)) + 
+          exec sql call qsys2.qcmdexc(:cmdstr);
+          logtxt = ' ' + %trim(%char(cur_date)) + 
          ' ' + %trim(%char(cur_time)) + 
          ' ' + %trim(cur_sysnm) + 
          ' ' + '3rd Command: ' + %trim(cmdstr);
-        exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                                           trim(:logtxt),
                                           OVERWRITE => 'APPEND',
                                           END_OF_LINE => 'CRLF'); 
@@ -163,23 +165,25 @@ dow sqlcod = 0;
         //   snd-msg '--- Restore *pwdgrp error ---';
         // endif;
         // usraut
-        usraut = %trimr(usraut) + ' ' + %trim(usrsavdev.objname) + ' ';
-
+          usraut = %trimr(usraut) + ' ' + %trim(usrsavdev.objname) + ' ';
+        endif;
       endif;
       // Action section
       if count = 10;
         clear cmdstr;
-        // snd-msg 'Usraut: ' + %trim(usraut);
-        cmdstr = 'RSTAUT USRPRF(' + %trim(usraut) + ')';
-        logtxt = ' ' + %trim(%char(cur_date)) + 
-         ' ' + %trim(%char(cur_time)) + 
-         ' ' + %trim(cur_sysnm) + 
-         ' ' + %trim(cmdstr);
-        exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
-                                          trim(:logtxt),
-                                          OVERWRITE => 'APPEND',
-                                          END_OF_LINE => 'CRLF'); 
-
+        if %len(%trim(usraut)) > 0;
+          // snd-msg 'Usraut: ' + %trim(usraut);
+          cmdstr = 'RSTAUT USRPRF(' + %trim(usraut) + ')';
+          exec sql call qsys2.qcmdexc(:cmdstr);
+          logtxt = ' ' + %trim(%char(cur_date)) + 
+           ' ' + %trim(%char(cur_time)) + 
+           ' ' + %trim(cur_sysnm) + 
+           ' ' + %trim(cmdstr);
+          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+                                            trim(:logtxt),
+                                            OVERWRITE => 'APPEND',
+                                            END_OF_LINE => 'CRLF'); 
+        endif;
         // snd-msg 'Restore user authority: ' + %trim(cmdstr);
         clear count;
         clear usraut;
@@ -201,15 +205,18 @@ enddo;
 
 clear cmdstr;
 // snd-msg 'Usraut: ' + %trim(usraut);
-cmdstr = 'RSTAUT USRPRF(' + %trim(usraut) + ')';
-logtxt = ' ' + %trim(%char(cur_date)) + 
+if %len(%trim(usraut)) > 0;
+  cmdstr = 'RSTAUT USRPRF(' + %trim(usraut) + ')';
+  exec sql call qsys2.qcmdexc(:cmdstr);
+  logtxt = ' ' + %trim(%char(cur_date)) + 
          ' ' + %trim(%char(cur_time)) + 
          ' ' + %trim(cur_sysnm) + 
          ' ' + %trim(cmdstr);
-exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
+  exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                                   trim(:logtxt),
                                   OVERWRITE => 'APPEND',
                                   END_OF_LINE => 'CRLF'); 
+endif;
 // snd-msg 'Restore user authority: ' + %trim(cmdstr);
 clear count;
 clear usraut;

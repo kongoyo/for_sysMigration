@@ -1,6 +1,5 @@
 **FREE
-ctl-opt option(*srcstmt) actgrp(*caller) ;
-
+//
 // CALL PGM(STEVE/AUTCMP_KGI) PARM('*ALL') 
 // CALL PGM(STEVE/AUTCMP_KGI) PARM('DDSCINFO')
 //
@@ -9,49 +8,42 @@ ctl-opt option(*srcstmt) actgrp(*caller) ;
 // save_volume  => 顯示物件來自於哪捲磁帶
 // srclbob      => 組成權限檔路徑 "Library.Object"
 // srclbnm      => 權限檔存放位置 "DDSCINFO"
-
-// declare user-input variable
+//
+ctl-opt option(*srcstmt) actgrp(*caller) ;
+//
 dcl-pi *n;
   exelib char(10);
 end-pi;
-
+//
 dcl-s stmt varchar(512);
-
+//
 dcl-pr syscmd int(10) ExtProc('system');
   *n Pointer Value Options(*String);
 end-pr;
-
+//
 dcl-s cmdstr char(500) inz('');
 dcl-s returnCode int(3);
-
-// Get current system name
-dcl-s cur_sysnm varchar(10) inz;
-
 // declare schema related
 dcl-s schema_name varchar(128);
-
+//
 dcl-s objname varchar(10);
 dcl-s objtype varchar(8);
 dcl-s objlongschema varchar(128);
 dcl-s save_volume varchar(71);
-
+//
 dcl-s ifsfnm char(200);
+dcl-s cur_sysnm varchar(8);
 dcl-s cur_date date;
 dcl-s cur_time time;
-dcl-s count int(10) inz(0);
 dcl-s logtxt char(200);
-
-// Get current system name
+//
 exec sql values current server into :cur_sysnm;
 exec sql values(current_date) into :cur_date;
 exec sql values(current_time) into :cur_time;
 ifsfnm = '/home/qsecofr/kgi_log/autcmp_' + %trim(%scanrpl('-' : '' : %char(cur_date))) + 
          '_' + %trim(%scanrpl('.' : '' : %char(cur_time))) + '.log';
-// snd-msg '--------------------------------------------------';
 // This line is for testing and should be removed
 cur_sysnm = 'AS101N';
-// snd-msg ' Current SysName : ' + cur_sysnm;
-// snd-msg '--------------------------------------------------';
 // Make sure output file is empty to start
 exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                                   '',
@@ -64,22 +56,21 @@ logtxt = ' ' + %trim(%char(cur_date)) +
 exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                                   trim(:logtxt),
                                   END_OF_LINE => 'CRLF');
-// declare liblst cursor
+// user-input option : '*ALL or specific user library'
 if %upper(exelib) = '*ALL';
-  stmt = 'Select schema_name ' +
-         'from qsys2.sysschemas ' +
-         'Where schema_name <> ''#COBLIB'' ' +
-         'And schema_name <> ''#LIBRARY'' ' +
-         'And schema_name <> ''#RPGLIB'' ' +
-         'And schema_name Not Like ''Q%'' ' +
-         'And schema_name <> ''SYSIBM'' ' +
-         'And schema_name <> ''SYSIBMADM'' ' +
-         'And schema_name <> ''SYSPROC'' ' +
-         'And schema_name <> ''SYSTOOLS'' ' +
-         'And schema_name Not Like ''RMT%'' ' +
-         'And schema_name Not Like ''HOYA%'' ' +
-         'And schema_name Not Like ''PMEDH%'' ';
-
+  stmt = 'Select schema_name' +
+         ' from qsys2.sysschemas' +
+         ' Where schema_name <> ''#COBLIB''' +
+         ' And schema_name <> ''#LIBRARY''' +
+         ' And schema_name <> ''#RPGLIB''' +
+         ' And schema_name Not Like ''Q%''' +
+         ' And schema_name <> ''SYSIBM''' +
+         ' And schema_name <> ''SYSIBMADM''' +
+         ' And schema_name <> ''SYSPROC''' +
+         ' And schema_name <> ''SYSTOOLS''' +
+         ' And schema_name Not Like ''RMT%''' +
+         ' And schema_name Not Like ''HOYA%''' +
+         ' And schema_name Not Like ''PMEDH%''';
 elseif exelib = '#COBLIB' or exelib = '#LIBRARY' or exelib = '#RPGLIB' or
        %subst(exelib : 1 : 1) = 'Q' or exelib = 'SYSIBM' or exelib = 'SYSIBMADM' or
        exelib = 'SYSPROC' or exelib = 'SYSTOOLS';
@@ -110,7 +101,7 @@ else;
          'And schema_name Not Like ''HOYA%'' ' +
          'And schema_name Not Like ''PMEDH%'' ';
 endif;
-
+// declare liblst cursor
 exec sql prepare preliblst from :stmt;
 exec sql declare liblst cursor for preliblst;
 exec sql open liblst;
@@ -118,23 +109,23 @@ exec sql fetch from liblst into :schema_name;
 dow sqlcod = 0;
   if sqlcod = 0;
     logtxt = ' ' + %trim(%char(cur_date)) + 
-         ' ' + %trim(%char(cur_time)) + 
-         ' ' + %trim(cur_sysnm) + 
-         ' ' + '*** Process ' + %trim(schema_name) + ' ***';
+             ' ' + %trim(%char(cur_time)) + 
+             ' ' + %trim(cur_sysnm) + 
+             ' ' + '*** Process ' + %trim(schema_name) + ' ***';
     exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
                                   trim(:logtxt),
                                   OVERWRITE => 'APPEND',
                                   END_OF_LINE => 'CRLF');
     exec sql declare objlst cursor for
-        Select coalesce(objname,'*NONE') AS objname,
-               coalesce(objtype,'*NONE') AS objtype,
-               coalesce(objlongschema,'*NONE') AS objlongschema,
-               coalesce(save_volume,'*NONE') AS save_volume
-        From Table (
-            qsys2.object_statistics(
-                object_schema => :schema_name,
-                objtypelist => '*ALL')
-        );
+               Select coalesce(objname,'') AS objname,
+                      coalesce(objtype,'') AS objtype,
+                      coalesce(objlongschema,'') AS objlongschema,
+                      coalesce(save_volume,'') AS save_volume
+               From Table (
+                   qsys2.object_statistics(
+                       object_schema => :schema_name,
+                       objtypelist => '*ALL')
+               );
     exec sql open objlst;
     exec sql fetch objlst into :objname, :objtype, :objlongschema, :save_volume;
     dow sqlcod = 0;
@@ -163,7 +154,7 @@ return ;
 
 dcl-proc find_chg_objaut;
   dcl-pi *n ;
-    cur_sysnm varchar(10);
+    cur_sysnm varchar(8);
     save_volume varchar(71);
     objlib varchar(128);
     objname varchar(10);
