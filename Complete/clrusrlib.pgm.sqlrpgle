@@ -1,6 +1,37 @@
 **FREE
 Ctl-Opt Main(CLRUSRLIB) dftactgrp(*no);
-
+// *******************************************************************
+// Program function  : Clear User Library.                                
+// Program Name      : CLRUSRLIB.sqlrpgle
+// Programmer Name   : STEVE                                       
+// Modification Date : 2025/07/07                                   
+// *******************************************************************
+// Usage             : CALL *LIBL/CLRUSRLIB ('*ALLUSR')
+//    Or             : CALL *LIBL/CLRUSRLIB ('DDSCINFO')
+// *******************************************************************
+// Parameters        : --- user-input parameter ---
+//                     exe_schema char(10)  - The library name to clear.
+//                                          option: *ALL、*ALLUSR、specific or generic name can be used. 
+//
+//                     --- log format ---
+//                     ifsfnm char(200)     - Log file name(include path)
+//                     logtxt char(256)     - Log text
+//                     cur_date date        - Current date
+//                     cur_time time        - Current time  
+//                     cur_sysnm char(8)    - current system name
+//
+//                     --- log format ---
+//                     XXXX-XX-XX HH.MM.SS SYSNAME logText(command string or executed result). 
+//
+//                     --- execute command string ---
+//                     cmdstr char(256)     - commandString
+//
+//                     --- sql query ---
+//                     stmt varchar(512)    - sql query statement
+//                     rplylst_seqnum int(10)  - reply sequence number
+//                     rplylst_msgid varchar(7) - reply message id
+//                     rplylst_reply varchar(1) - reply message reply
+// *******************************************************************
 Dcl-Proc CLRUSRLIB;
     Dcl-Pi *N;
         exe_schema char(10) const;
@@ -19,9 +50,9 @@ Dcl-Proc CLRUSRLIB;
     dcl-s stmt varchar(512);
     dcl-s returnCode int(3);
     dcl-s cmdstr char(500) inz('');
-    dcl-s rply_seqnum int(10);
-    dcl-s rply_msgid varchar(7);
-    dcl-s rply_reply varchar(1);
+    dcl-s rplylst_seqnum int(10);
+    dcl-s rplylst_msgid varchar(7);
+    dcl-s rplylst_reply varchar(1);
 
     dcl-s cur_sysnm varchar(10);
     dcl-s ifsfnm char(200);
@@ -47,16 +78,6 @@ Dcl-Proc CLRUSRLIB;
                                   trim(:logtxt),
                                   OVERWRITE => 'APPEND',
                                   END_OF_LINE => 'CRLF');
-    clear stmt;
-    stmt = 'select ' +
-           'coalesce(objname, '''') as objname ' +
-           'from table (qsys2.object_statistics(' +
-           'object_schema => ''' + %trim(%upper(exe_schema)) + ''', objtypelist => ''*LIB''' +
-           '))';
-    exec sql prepare preliblst from :stmt;
-    exec sql declare liblst cursor for preliblst;
-    exec sql open liblst;
-    exec sql fetch from liblst into :liblst.objname;
     // snd-msg '------------------------------';
     // snd-msg '  Current SysName : ' + %trim(cur_sysnm);
     // snd-msg '------------------------------';
@@ -99,11 +120,11 @@ Dcl-Proc CLRUSRLIB;
     exec sql Select coalesce(sequence_number,0) as sequence_number,
                     coalesce(message_id,'') as message_id, 
                     coalesce(message_reply,'') as message_reply
-             Into :rply_seqnum, :rply_msgid, :rply_reply
+             Into :rplylst_seqnum, :rplylst_msgid, :rplylst_reply
              From qsys2.reply_list_info
              Where message_id In ('CPA7025');
     // If it doesn't exist, add it to auto-reply with 'I' (Ignore)
-    if rply_seqnum = 0;
+    if rplylst_seqnum = 0;
         clear cmdstr;
         cmdstr = 'ADDRPYLE SEQNBR(9898) MSGID(CPA7025) RPY(I)';
         exec sql call qsys2.qcmdexc(:cmdstr);
@@ -115,9 +136,9 @@ Dcl-Proc CLRUSRLIB;
                                   trim(:logtxt),
                                   OVERWRITE => 'APPEND',
                                   END_OF_LINE => 'CRLF');
-    elseif rply_seqnum <> 0 and rply_reply <> 'I';
+    elseif rplylst_seqnum <> 0 and rplylst_reply <> 'I';
         clear cmdstr;
-        cmdstr = 'CHGRPYLE SEQNBR(' + %char(rply_seqnum) + ') MSGID(*SAME) RPY(I)';
+        cmdstr = 'CHGRPYLE SEQNBR(' + %char(rplylst_seqnum) + ') MSGID(*SAME) RPY(I)';
         exec sql call qsys2.qcmdexc(:cmdstr);
         logtxt = ' ' + %trim(%char(cur_date)) +
                  ' ' + %trim(%char(cur_time)) +
@@ -129,7 +150,17 @@ Dcl-Proc CLRUSRLIB;
                                   END_OF_LINE => 'CRLF');
     else;
     endif;
-
+    // Get Library Name
+    clear stmt;
+    stmt = 'select ' +
+           'coalesce(objname, '''') as objname ' +
+           'from table (qsys2.object_statistics(' +
+           'object_schema => ''' + %trim(%upper(exe_schema)) + ''', objtypelist => ''*LIB''' +
+           '))';
+    exec sql prepare preliblst from :stmt;
+    exec sql declare liblst cursor for preliblst;
+    exec sql open liblst;
+    exec sql fetch from liblst into :liblst.objname;
     dow sqlcod = 0;
         if sqlcod = 0;
             // returnVal = %scan('DDSC' : liblst.objname : 1);
@@ -216,9 +247,9 @@ Dcl-Proc CLRUSRLIB;
         exec sql fetch from liblst into :liblst.objname;
     enddo;
     exec sql close liblst;
-    if rply_seqnum <> 0;
+    if rplylst_seqnum <> 0;
         clear cmdstr;
-        cmdstr = 'CHGRPYLE SEQNBR(' + %char(rply_seqnum) + ') MSGID(*SAME) RPY(' + %trim(rply_reply) + ')';
+        cmdstr = 'CHGRPYLE SEQNBR(' + %char(rplylst_seqnum) + ') MSGID(*SAME) RPY(' + %trim(rplylst_reply) + ')';
         exec sql call qsys2.qcmdexc(:cmdstr);
         logtxt = ' ' + %trim(%char(cur_date)) +
                  ' ' + %trim(%char(cur_time)) +
@@ -228,7 +259,7 @@ Dcl-Proc CLRUSRLIB;
                                   trim(:logtxt),
                                   OVERWRITE => 'APPEND',
                                   END_OF_LINE => 'CRLF');
-    elseif rply_seqnum = 0;
+    elseif rplylst_seqnum = 0;
         clear cmdstr;
         cmdstr = 'RMVRPYLE SEQNBR(9898)';
         exec sql call qsys2.qcmdexc(:cmdstr);
