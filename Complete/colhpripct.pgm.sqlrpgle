@@ -1,4 +1,5 @@
 **free
+// Usage: 
 ctl-opt option(*srcstmt) dftactgrp(*no) ; 
 dcl-ds cfgsrc qualified;
   srcseq zoned(6);
