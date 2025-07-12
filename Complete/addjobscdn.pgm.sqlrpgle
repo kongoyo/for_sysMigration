@@ -139,7 +139,6 @@ dcl-proc read_from_file;
                 if sqlcod = 0;
                     hold_jobscd(scdjobname : scdentryno : hld_errcount);
                 else;
-                    hld_errcount += 1;
                     logsts = 'C';
                     logtxt = '*** WARNING *** : Could not find entry number for job ' + 
                              %trim(scdjobname) + ' to hold it.';
