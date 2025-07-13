@@ -286,6 +286,7 @@ dcl-proc rtv_file_compare;
                     oaobja : oaamgt : oaopr : oaomgt : oaexs : oaalt : oaref : oaread : oaadd :
                     oaupd : oadlt : oaexec);
                 when user_name <> '*PUBLIC';
+                    if 
                     check_objaut(sys_dname : sys_oname : objtype : user_name : obj_auth : 
                     autl_mgmt : objoper : objmgt : objexist : object_alter : object_reference : 
                     data_read : data_add : data_upd : data_del : data_execute :
@@ -423,7 +424,7 @@ dcl-proc check_objaut;
                 %trim(object_reference) <> %trim(oaref) or %trim(data_read) <> %trim(oaread) or 
                 %trim(data_add) <> %trim(oaadd) or %trim(data_upd) <> %trim(oaupd) or 
                 %trim(data_del) <> %trim(oadlt) or %trim(data_execute) <> %trim(oaexec);
-                cmdstr = 'CHGAUTLE AUTL(' + %trim(autl) + ') USER(' + %trim(user_name) +
+                cmdstr = 'CHGAUTLE AUTL(' + %trim(sys_oname) + ') + ') USER(' + %trim(user_name) +
                     ') AUT(';
                 if %trim(oaamgt) = 'YES';
                     cmdstr = %trimr(cmdstr) + ' *AUTLMGT';
