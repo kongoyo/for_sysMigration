@@ -1,4 +1,7 @@
 **FREE
+// CALL PGM(STEVE/SQLTEST) PARM(('STEVE'))
+// parameter: *ALL *ALLUSR or specific library
+//
 ctl-opt option(*srcstmt) dftactgrp(*no);
 dcl-pi *n;
     objschema char(10);
@@ -7,9 +10,11 @@ dcl-ds liblst qualified;
     objlongschema char(10);
     objname char(10);
     objtype char(7);
+    save_volume char(6);
 end-ds;
+dcl-s target_libnm char(10);
+dcl-s target_filnm char(10);
 dcl-s objNotFound char(10);
-dcl-s objNotFound_ind int(5); 
 
 dcl-s stmt char(1500);
 dcl-s tot_count packed(5:0);
@@ -35,7 +40,10 @@ clear err_count;
 //         from table(qsys2.object_statistics(
 //             object_schema => '*ALLUSR',
 //             objtypelist => '*ALL'))) with data;
-stmt =  'select objlongschema, objname, objtype ' +
+stmt =  'select coalesce(objlongschema,'''') as objlongschema, ' +
+        'coalesce(objname,'''') as objname, ' +
+        'coalesce(objtype,'''') as objtype, ' +
+        'coalesce(save_volume,'''') as save_volume ' +
         'from table(qsys2.object_statistics(' +
         'object_schema => ''' + %trim(objschema) + ''', ' +
         'objtypelist => ''*ALL''))';
@@ -55,27 +63,43 @@ dow sqlcod = 0;
             %scan('SYSIBMADM' : %trim(liblst.objlongschema)) <> 1 and
             %scan('SYSPROC' : %trim(liblst.objlongschema)) <> 1 and
             %scan('SYSTOOLS' : %trim(liblst.objlongschema)) <> 1;
-            //
             tot_count += 1;
-            exec sql values(select oaname from ddscinfo.objaut
-                            where oalib = :liblst.objlongschema
-                            and oaname = :liblst.objname
-                            and oatype = :liblst.objtype
-                            and oausr = '*PUBLIC'
-                            fetch first 1 row only)
-                    into :objNotFound :objNotFound_ind;
-            if objNotFound_ind = 0; 
-                check_owner(liblst.objlongschema : liblst.objname : liblst.objtype : chg_count : err_count); // chgobjown
-                check_autl(liblst.objlongschema : liblst.objname : liblst.objtype : chg_count : err_count); // grtobjaut
-                check_obja(liblst.objlongschema : liblst.objname : liblst.objtype : chg_count : err_count); // grtobjaut
+            // prepare file name
+            // if %trim(liblst.save_volume) = '';
+            target_libnm = 'DDSCINFO';
+            target_filnm = 'OBJAUT';
+            // else;
+            //     target_libnm = 'DDSCINFO';
+            //     target_filnm = 'OBJAUT' + %subst(%trim(liblst.save_volume) : 1 : 3);
+            // endif;
+            clear logtxt;
+            logsts = 'C';
+            logtxt = 'Search from  : ' + target_libnm + '.' + target_filnm;
+            writelog(logsts : logtxt);
+            //
+            stmt = 'select oaname from ' + %trim(target_libnm) + '.' + %trim(target_filnm) + ' ' +
+                        'where oalib = ? ' +
+                        'and oaname = ? ' +
+                        'and oatype = ? ' +
+                        'and oausr = ''*PUBLIC'' ' +
+                        'fetch first 1 row only';
+            exec sql prepare preobjFound from :stmt;
+            exec sql declare objFound cursor for preobjFound;
+            exec sql open objFound using :liblst.objlongschema, :liblst.objname, :liblst.objtype;
+            exec sql fetch from objFound into :objNotFound;
+            if objNotFound <> ''; 
+                check_owner(target_libnm : target_filnm : liblst.objlongschema : liblst.objname : liblst.objtype : chg_count : err_count); // chgobjown
+                check_autl(target_libnm : target_filnm : liblst.objlongschema : liblst.objname : liblst.objtype : chg_count : err_count); // grtobjaut
+                check_obja(target_libnm : target_filnm : liblst.objlongschema : liblst.objname : liblst.objtype : chg_count : err_count); // grtobjaut
             else;
                 err_count += 1;
                 clear logtxt;
                 logsts = 'C';
                 logtxt = 'ERR' + %editc(err_count:'X') + '. Target not found in the file					: ' + 
-                            liblst.objlongschema + '  ' + liblst.objname + '  ' + liblst.objtype;
+                liblst.objlongschema + '  ' + liblst.objname + '  ' + liblst.objtype;
                 writelog(logsts : logtxt);
             endif;                       
+            exec sql close objFound;                      
         endif;
         exec sql fetch next from liblst into :liblst;
     endif;
@@ -123,7 +147,8 @@ dcl-proc execute_change;
     //              OBJAU - obj_authority diff
     //              OBJNA - obj_authority not found
     dcl-pi *n;
-        option char(4);
+        option char(5);
+        data char(100);
         objlongschema char(10);
         objname char(10);
         objtype char(7);
@@ -135,16 +160,108 @@ dcl-proc execute_change;
     end-pr;
     dcl-s cmdstr char(800);
     dcl-s returnCode int(5);
+    dcl-s logsts char(1); // T: Log Title  C: Log Continue  E: Log Ending)
+    dcl-s logtxt char(1500);
     //
+    select;
+        when option = 'OWNER';
+            clear cmdstr;
+            // CHGOBJOWN OBJ(XXX/XXX) OBJTYPE(*XXX) NEWOWN(XXX)
+            cmdstr = 'CHGOBJOWN OBJ(' + %trim(objlongschema) + '/' + %trim(objname) + 
+                        ') OBJTYPE(' + %trim(objtype) + ') NEWOWN(' + %trim(data) + ')';
+            clear logtxt;
+            logsts = 'C';
+            logtxt = 'Command preview: [' + %trim(cmdstr) + ']';
+            writelog(logsts : logtxt);
+            returnCode = syscmd(cmdstr);
+            if returnCode <> 0;
+                err_count += 1;
+                clear logtxt;
+                logsts = 'C';
+                logtxt = 'ERR' + %editc(err_count:'X') + 
+                            '. Command failed. Please check. (' +
+                            %trim(objlongschema) + '  ' + %trim(objname) + '  ' + %trim(objtype) + ')';
+                writelog(logsts : logtxt);
+            endif;
 
+        when option = 'AUTHL';
+            clear cmdstr;
+            // GRTOBJAUT OBJ(XXX/XXX) OBJTYPE(*XXX) AUTL(XXX)
+            cmdstr = 'GRTOBJAUT OBJ(' + %trim(objlongschema) + '/' + %trim(objname) + 
+                        ') OBJTYPE(' + %trim(objtype) + ') AUTL(' + %trim(data) + ')';
+            clear logtxt;
+            logsts = 'C';
+            logtxt = 'Command preview: [' + %trim(cmdstr) + ']';
+            writelog(logsts : logtxt);
+            returnCode = syscmd(cmdstr);
+            if returnCode <> 0;
+                err_count += 1;
+                clear logtxt;
+                logsts = 'C';
+                logtxt = 'ERR' + %editc(err_count:'X') + 
+                            '. Command failed. Please check. (' +
+                            %trim(objlongschema) + '  ' + %trim(objname) + '  ' + %trim(objtype) + ')';
+                writelog(logsts : logtxt);
+            endif;
 
+        when option = 'OBJAU';
+            clear cmdstr;
+            // GRTOBJAUT OBJ(XXX/XXX) OBJTYPE(XXX) USER(XXX) AUT(XXX)
+            cmdstr = 'GRTOBJAUT OBJ(' + %trim(objlongschema) + '/' + %trim(objname) + 
+                        ') OBJTYPE(' + %trim(objtype) + ') USER(' + %trim(%subst(data : 1 : 10)) + 
+                        ') AUT(' + %trim(%subst(data : 11 : 90)) + ')';
+            clear logtxt;
+            logsts = 'C';
+            logtxt = 'Command preview: [' + %trim(cmdstr) + ']';
+            writelog(logsts : logtxt);
+            returnCode = syscmd(cmdstr);
+            if returnCode <> 0;
+                err_count += 1;
+                clear logtxt;
+                logsts = 'C';
+                logtxt = 'ERR' + %editc(err_count:'X') + 
+                            '. Command failed. Please check. (' +
+                            %trim(objlongschema) + '  ' + %trim(objname) + '  ' + %trim(objtype) + ')';
+                writelog(logsts : logtxt);
+            endif;
 
+        when option = 'OBJNA';
+            clear cmdstr;
+            // GRTOBJAUT OBJ(XXX/XXX) OBJTYPE(XXX) USER(XXX) AUT(XXX)
+            cmdstr = 'GRTOBJAUT OBJ(' + %trim(objlongschema) + '/' + %trim(objname) + 
+                        ') OBJTYPE(' + %trim(objtype) + ') USER(' + %trim(%subst(data : 1 : 10)) + 
+                        ') AUT(' + %trim(%subst(data : 11 : 90)) + ')';
+            clear logtxt;
+            logsts = 'C';
+            logtxt = 'Command preview: [' + %trim(cmdstr) + ']';
+            writelog(logsts : logtxt);
+            returnCode = syscmd(cmdstr);
+            if returnCode <> 0;
+                err_count += 1;
+                clear logtxt;
+                logsts = 'C';
+                logtxt = 'ERR' + %editc(err_count:'X') + 
+                            '. Command failed. Please check. (' +
+                            %trim(objlongschema) + '  ' + %trim(objname) + '  ' + %trim(objtype) + ')';
+                writelog(logsts : logtxt);
+            endif;
+
+        other;
+            clear logtxt;
+            logsts = 'C';
+            logtxt = 'ERR' + %editc(err_count:'X') + 
+                        '. Unrecorgnized command. Please check. (' + 
+                        %trim(objlongschema) + '  ' + %trim(objname) + '  ' + %trim(objtype) + ')';
+            writelog(logsts : logtxt);
+    endsl;
     //
     return;
 end-proc;
 
 dcl-proc check_obja;
     dcl-pi *n;
+        target_libnm char(10);
+        target_filnm char(10);
         objlongschema char(10);
         objname char(10);
         objtype char(7);
@@ -155,6 +272,8 @@ dcl-proc check_obja;
     dcl-s cur_usr_ind int(5);
     dcl-s fil_usr char(10);
     dcl-s fil_usr_ind int(5);
+    dcl-s cur_grpn char(10);
+    dcl-s fil_grpn char(10);
     dcl-s cur_objobja char(12);
     dcl-s cur_objobja_ind int(5);
     dcl-s fil_objobja char(12);
@@ -203,17 +322,22 @@ dcl-proc check_obja;
     dcl-s cur_exec_ind int(5);
     dcl-s fil_exec char(3);
     dcl-s fil_exec_ind int(5);
+    dcl-s option char(5);
+    dcl-s data char(100);
     //
-    stmt = 'select oausr, oaobja from ddscinfo.objaut ' +
+    stmt = 'select oausr, oaobja, oagrpn from '+ %trim(target_libnm) + '.' + %trim(target_filnm) + ' ' +
                 'where oalib = ? ' +
                 'and oaname = ? ' +
                 'and oatype = ?';
     exec sql prepare preautcur from :stmt;
     exec sql declare autcur cursor for preautcur;
     exec sql open autcur using :objlongschema, :objname, :objtype;
-    exec sql fetch next from autcur into :fil_usr, :fil_objobja;
+    exec sql fetch next from autcur into :fil_usr, :fil_objobja, :fil_grpn;
     dow sqlcod = 0;
         if sqlcod = 0;
+            if fil_usr = '*GROUP';
+                fil_usr = %trim(fil_grpn);
+            endif;
             exec sql values(select coalesce(authorization_name,'') as authorization_name, 
                             coalesce(object_authority,'') as object_authority from qsys2.object_privileges
                             where sys_dname = :objlongschema
@@ -242,6 +366,40 @@ dcl-proc check_obja;
                         logsts = 'C';
                         logtxt = '-  File user / obja										: ' + fil_usr + '  ' + fil_objobja;
                         writelog(logsts : logtxt);
+                        
+                        option = 'OBJAU';
+                        data = fil_usr;
+                        if fil_objopr = 'X';
+                            data = data + '*OBJOPR ';
+                        endif;
+                        if fil_objomgt = 'X';
+                            data = data + '*OBJOMGT ';
+                        endif;
+                        if fil_objexist = 'X';
+                            data = data + '*OBJEXIST ';
+                        endif;
+                        if fil_objalter = 'X';
+                            data = data + '*OBJALTER ';
+                        endif;
+                        if fil_objref = 'X';
+                            data = data + '*OBJREF ';
+                        endif;
+                        if fil_read = 'X';
+                            data = data + '*READ ';
+                        endif;
+                        if fil_add = 'X';
+                            data = data + '*ADD ';
+                        endif;
+                        if fil_upd = 'X';
+                            data = data + '*UPD ';
+                        endif;
+                        if fil_dlt = 'X';
+                            data = data + '*DLT ';
+                        endif;
+                        if fil_exec = 'X';
+                            data = data + '*EXEC ';
+                        endif;
+                        execute_change(option : data : objlongschema : objname : objtype : chg_count : err_count);                    
                     else;
                         chg_count += 1;
                         clear logtxt;
@@ -258,7 +416,21 @@ dcl-proc check_obja;
                         logtxt = '-  File user / obja										: ' + fil_usr + '  ' + fil_objobja;
                         writelog(logsts : logtxt);
                         
+                        option = 'OBJAU';
+                        data = fil_usr + fil_objobja;
+                        execute_change(option : data : objlongschema : objname : objtype : chg_count : err_count);
+
                     endif;                  
+                elseif %trim(fil_objobja) = %trim(cur_objobja) and %trim(fil_objobja) = 'USER DEFINED';
+                    if %trim(fil_objopr) <> %trim(cur_objopr) or %trim(fil_objomgt) <> %trim(cur_objomgt) or
+                        %trim(fil_objexist) <> %trim(cur_objexist) or %trim(fil_objalter) <> %trim(cur_objalter) or
+                        %trim(fil_objref) <> %trim(cur_objref) or %trim(fil_read) <> %trim(cur_read) or
+                        %trim(fil_add) <> %trim(cur_add) or %trim(fil_upd) <> %trim(cur_upd) or
+                        %trim(fil_dlt) <> %trim(cur_dlt) or %trim(fil_exec) <> %trim(cur_exec);
+                        chg_count += 1;
+                        clear logtxt;
+                        logsts = 'C';
+                        logtxt = 'CHG' + %editc(chg_count:'X')
                 endif;
             else;
                 if %trim(fil_objobja) = 'USER DEFINED';
@@ -272,6 +444,10 @@ dcl-proc check_obja;
                     logsts = 'C';
                     logtxt = '-  File user / obja										: ' + fil_usr + '  ' + fil_objobja;
                     writelog(logsts : logtxt);
+
+                    option = 'OBJNA';
+                    data = fil_usr + fil_objobja;
+                    execute_change(option : data : objlongschema : objname : objtype : chg_count : err_count);
                 else;
                     chg_count += 1;
                     clear logtxt;
@@ -283,9 +459,13 @@ dcl-proc check_obja;
                     logsts = 'C';
                     logtxt = '-  File user / obja										: ' + fil_usr + '  ' + fil_objobja;
                     writelog(logsts : logtxt);
+
+                    option = 'OBJNA';
+                    data = fil_usr + fil_objobja;
+                    execute_change(option : data : objlongschema : objname : objtype : chg_count : err_count);
                 endif;
             endif; 
-            exec sql fetch next from autcur into :fil_usr :fil_usr_ind, :fil_objobja :fil_objobja_ind;
+            exec sql fetch next from autcur into :fil_usr, :fil_objobja, :fil_grpn;;
         endif;      
     enddo;
     exec sql close autcur;
@@ -295,6 +475,8 @@ end-proc;
 
 dcl-proc check_autl;
     dcl-pi *n;
+        target_libnm char(10);
+        target_filnm char(10);
         objlongschema char(10);
         objname char(10);
         objtype char(7);
@@ -303,7 +485,9 @@ dcl-proc check_autl;
     end-pi;
     dcl-s cur_autl char(10);
     dcl-s fil_autl char(10);
-
+    dcl-s stmt char(1500);
+    dcl-s option char(5);
+    dcl-s data char(100);
     //
     clear cur_autl;
     clear fil_autl;
@@ -324,13 +508,23 @@ dcl-proc check_autl;
                  %trim(objlongschema) + '  ' + %trim(objname) + '  ' + %trim(objtype) + ')';
         writelog(logsts : logtxt);
     endif;
-    exec sql values(select coalesce(oaanam,'*NONE') as oaanam from ddscinfo.objaut
-                            where oalib = :objlongschema
-                            and oaname = :objname
-                            and oatype = :objtype
-                            and oausr = '*PUBLIC'
-                            fetch first 1 row only)
-                    into :fil_autl;
+    stmt = 'select coalesce(oaanam,''*NONE'') as oaanam from ' + %trim(target_libnm) + '.' + %trim(target_filnm) + ' ' +
+                'where oalib = ? ' +
+                'and oaname = ? ' +
+                'and oatype = ? ' +
+                'and oausr = ''*PUBLIC'' ' +
+                'fetch first 1 row only';
+    exec sql prepare preautl from :stmt;
+    exec sql declare autl cursor for preautl;
+    exec sql open autl using :objlongschema, :objname, :objtype;
+    exec sql fetch from autl into :fil_autl;
+    // exec sql values(select coalesce(oaanam,'*NONE') as oaanam from ddscinfo.objaut
+    //                         where oalib = :objlongschema
+    //                         and oaname = :objname
+    //                         and oatype = :objtype
+    //                         and oausr = '*PUBLIC'
+    //                         fetch first 1 row only)
+    //                 into :fil_autl;
     if fil_autl <> '';
         if %trim(cur_autl) <> %trim(fil_autl);
             chg_count += 1;
@@ -343,7 +537,10 @@ dcl-proc check_autl;
             clear logtxt;
             logsts = 'C';
             logtxt = '-  Current / File autl			 						: ' + cur_autl + '  ' + fil_autl;
-            writelog(logsts : logtxt);                        
+            writelog(logsts : logtxt);
+            option = 'AUTHL';
+            data = %trim(fil_autl);
+            execute_change(option : data : objlongschema : objname : objtype : chg_count : err_count);
         endif;
     else;
         chg_count += 1;
@@ -354,15 +551,18 @@ dcl-proc check_autl;
 
         clear logtxt;
         logsts = 'C';
-        logtxt = '-  File autl: ' + %trim(fil_autl);
+        logtxt = '-  File autl : ' + %trim(fil_autl);
         writelog(logsts : logtxt);
     endif;
+    exec sql close autl;
+    //
     return;
 end-proc;
 
-
 dcl-proc check_owner;
     dcl-pi *n;
+        target_libnm char(10);
+        target_filnm char(10);
         objlongschema char(10);
         objname char(10);
         objtype char(7);
@@ -371,6 +571,9 @@ dcl-proc check_owner;
     end-pi;
     dcl-s cur_owner char(10);
     dcl-s fil_owner char(10);
+    dcl-s stmt char(1500);
+    dcl-s option char(5);
+    dcl-s data char(100);
     //
     clear cur_owner;
     clear fil_owner;
@@ -391,13 +594,24 @@ dcl-proc check_owner;
                  %trim(objlongschema) + '  ' + %trim(objname) + '  ' + %trim(objtype) + ')';
         writelog(logsts : logtxt);
     endif;
-    exec sql values(select coalesce(oaown,'') as oaown from ddscinfo.objaut
-                            where oalib = :objlongschema
-                            and oaname = :objname
-                            and oatype = :objtype
-                            and oausr = '*PUBLIC'
-                            fetch first 1 row only)
-                    into :fil_owner;
+    stmt = 'select coalesce(oaown,''*NONE'') as oaown from ' + %trim(target_libnm) + '.' + %trim(target_filnm) + ' ' +
+                'where oalib = ? ' +
+                'and oaname = ? ' +
+                'and oatype = ? ' +
+                'and oausr = ''*PUBLIC'' ' +
+                'fetch first 1 row only';
+    exec sql prepare preowner from :stmt;
+    exec sql declare owner cursor for preowner;
+    exec sql open owner using :objlongschema, :objname, :objtype;
+    exec sql fetch from owner into :fil_owner;
+    // exec sql)
+    // exec sql values(select coalesce(oaown,'') as oaown from ddscinfo.objaut
+    //                         where oalib = :objlongschema
+    //                         and oaname = :objname
+    //                         and oatype = :objtype
+    //                         and oausr = '*PUBLIC'
+    //                         fetch first 1 row only)
+    //                 into :fil_owner;
     if fil_owner <> '';
         if %trim(cur_owner) <> %trim(fil_owner);
             chg_count += 1;
@@ -411,6 +625,9 @@ dcl-proc check_owner;
             logsts = 'C';
             logtxt = '-  Current / File owner									: ' + cur_owner + '  ' + fil_owner;
             writelog(logsts : logtxt);
+            option = 'OWNER';
+            data = %trim(fil_owner);
+            execute_change(option : data : objlongschema : objname : objtype : chg_count : err_count);
         endif;
     else;
         chg_count += 1;
@@ -424,6 +641,8 @@ dcl-proc check_owner;
         logtxt = '-  File owner: ' + %trim(fil_owner);
         writelog(logsts : logtxt);
     endif;
+    exec sql close owner;
+    //
     return;
 end-proc;
 
