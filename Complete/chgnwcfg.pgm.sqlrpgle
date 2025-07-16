@@ -77,7 +77,7 @@ dcl-proc for_cursys;
     dcl-ds curlind qualified;
         line_description char(10);
     end-ds;
-    dcl-ds orgrdb qualified;
+    dcl-ds currdb qualified;
         rdb_name char(18);
         rdb_alias char(18);
         remote_location_type char(4);
@@ -90,6 +90,7 @@ dcl-proc for_cursys;
     dcl-ds orgroute likeds(curroute);
     dcl-ds orgsysip likeds(cursysip);
     dcl-ds orghosttbl likeds(curhosttbl);
+    dcl-ds orgrdb likeds(currdb);
 
     dcl-s stmt char(500);
     dcl-s org_sysnm char(8);
@@ -421,6 +422,55 @@ dcl-proc for_cursys;
     cmdstr = 'CHGTCPDMN HOSTNAME(''' + %trim(org_sysnm) + ''')';
     process_Command(option:cmdstr:returnCode);
     
+    // save current rdb directory entry
+    clear stmt;
+    stmt = 'drop table ddscinfo.currdb' + %subst(%trim(cur_sysnm) : 3 : 3) + ' if exists';
+    exec sql prepare precurrdb from :stmt;
+    exec sql execute precurrdb;
+    
+    clear stmt;
+    stmt = 'create table ddscinfo.currdb' + %subst(%trim(cur_sysnm) : 3 : 3) + ' as (' +
+                        'select * from qsys2.rdb_entry_info' +
+                        ') with data';
+    exec sql prepare precurrdb from :stmt;
+    exec sql execute precurrdb;
+
+    clear stmt;
+    stmt = 'Select RDB_NAME, ' +
+                'Coalesce(RDB_ALIAS, '''') As RDB_ALIAS, ' +
+                'REMOTE_LOCATION_TYPE, ' +
+                'REMOTE_LOCATION, ' +
+                'PREFERRED_AUTHENTICATION, ' +
+                'LOWER_AUTHENTICATION, ' +
+                'ENCRYPTION_ALGORITHM, ' +
+                'SECURE_CONNECTION ' +
+                'From ddscinfo.currdb' + %subst(%trim(cur_sysnm) : 3 : 3);
+    exec sql prepare precurrdb from :stmt;
+    exec sql declare currdb cursor for precurrdb;
+    exec sql open currdb;
+    exec sql fetch from currdb into :currdb;
+    dow sqlcod = 0;
+        if sqlcod = 0;
+        // do something from here
+            if currdb.remote_location_type = '*LOCAL';
+                option = 'lcl';
+                cmdstr = 'RMVRDBDIRE RDB(' + %trim(currdb.rdb_name) + ')';
+                process_Command(option:cmdstr:returnCode);
+                clear cmdstr;
+                clear currdb.rdb_name;
+                clear currdb.rdb_alias;
+                clear currdb.remote_location_type;
+                clear currdb.remote_location;
+                clear currdb.preferred_authentication;
+                clear currdb.lower_authentication;
+                clear currdb.encryption_algorithm;
+                clear currdb.secure_connection;
+                exec sql fetch from currdb into :currdb;
+            endif;
+        endif;
+    enddo;
+    exec sql close currdb;
+
     // change to original rdb directory entry
     // select * from qsys2.rdb_entry_info where remote_location = '*LOCAL';
     // CL: RMVRDBDIRE RDB(xxx)
@@ -438,7 +488,7 @@ dcl-proc for_cursys;
                 'LOWER_AUTHENTICATION, ' +
                 'ENCRYPTION_ALGORITHM, ' +
                 'SECURE_CONNECTION ' +
-                'From QSYS2.RDB_ENTRY_INFO';
+                'From ddscinfo.orgrdb' + %subst(%trim(cur_sysnm) : 3 : 3);
     exec sql prepare preorgrdb from :stmt;
     exec sql declare orgrdb cursor for preorgrdb;
     exec sql open orgrdb;
@@ -448,7 +498,8 @@ dcl-proc for_cursys;
         // do something from here
             if orgrdb.remote_location_type = '*LOCAL';
                 option = 'lcl';
-                cmdstr = 'RMVRDBDIRE RDB(''' + %trim(orgrdb.rdb_name) + ''')';
+                cmdstr = 'ADDRDBDIRE RDB(' + %trim(orgrdb.rdb_name) + ') ' +
+                         'RMTLOCNAME(*LOCAL *IP) ';
                 process_Command(option:cmdstr:returnCode);
                 clear cmdstr;
                 clear orgrdb.rdb_name;
