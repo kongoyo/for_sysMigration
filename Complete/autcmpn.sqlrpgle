@@ -1,769 +1,473 @@
 **FREE
-// CALL PGM(STEVE/SQLTEST) PARM(('STEVE'))
-// parameter: *ALL *ALLUSR or specific library
-//
 ctl-opt option(*srcstmt) dftactgrp(*no);
 dcl-pi *n;
     objschema char(10);
 end-pi;
-dcl-ds liblst qualified;
-    objlongschema char(10);
-    objname char(10);
+dcl-pr syscmd int(10) ExtProc('system');
+    *n Pointer Value Options(*String);
+end-pr;
+dcl-ds lst qualified;
+    sys_dname char(10);
+    sys_oname char(10);
     objtype char(7);
-    save_volume char(6);
+    user_name char(10);
+    OBJ_AUTH char(12);
+    OWNER char(10);
+    AUTL char(10);
+    GROUP char(10);
+    OBJOPER char(3);
+    OBJMGT char(3);
+    OBJEXIST char(3);
+    OBJALTER char(3);
+    OBJREF char(3);
+    DATA_READ char(3);
+    DATA_ADD char(3);
+    DATA_UPD char(3);
+    DATA_DEL char(3);
+    DATA_EXEC char(3);
 end-ds;
-dcl-s target_libnm char(10);
-dcl-s target_filnm char(10);
-dcl-s objNotFound char(10);
+dcl-ds objaut qualified;
+    oalib char(10);
+    oaname char(10);
+    oatype char(7);
+    oausr char(10);
+    oagrpn char(10);
+    oaobja char(12);
+    oaown char(10);
+    oaanam char(10);
+    oaopr char(3);
+    oaomgt char(3);
+    oaexs char(3);
+    oaalt char(3);
+    oaref char(3);
+    oaread char(3);
+    oaadd char(3);
+    oaupd char(3);
+    oadlt char(3);
+    oaexec char(3);
+end-ds;
 
 dcl-s stmt char(1500);
 dcl-s tot_count packed(5:0);
-dcl-s chg_count packed(5:0);
-dcl-s err_count packed(5:0);
-
 dcl-s logsts char(1); // T: Log Title  C: Log Continue  E: Log Ending
 dcl-s logtxt char(1500);
-
-logsts = 'T';
-writelog(logsts : logtxt);
+dcl-s grtcmdstr char(800);
+dcl-s rvkcmdstr char(800);
+dcl-s cmdstr char(800);
+dcl-s returnCode int(5);
 //
-logsts = 'C';
-logtxt = 'Authority comparison job start';
-writelog(logsts : logtxt);
-//
-clear tot_count;
-clear chg_count;
-clear err_count;
-// exec sql SET OPTION COMMIT = *NC;
-// exec sql create table qtemp.work as (
-//         select objlongschema, objname, objtype 
-//         from table(qsys2.object_statistics(
-//             object_schema => '*ALLUSR',
-//             objtypelist => '*ALL'))) with data;
-stmt =  'select coalesce(objlongschema,'''') as objlongschema, ' +
-        'coalesce(objname,'''') as objname, ' +
-        'coalesce(objtype,'''') as objtype, ' +
-        'coalesce(save_volume,'''') as save_volume ' +
-        'from table(qsys2.object_statistics(' +
-        'object_schema => ''' + %trim(objschema) + ''', ' +
-        'objtypelist => ''*ALL''))';
-// stmt = 'select objlongschema, objname, objtype ' +
-//         'from qtemp.work';
-exec sql prepare preliblst from :stmt;
-exec sql declare liblst cursor for preliblst;
-exec sql open liblst;
-exec sql fetch next from liblst into :liblst;
+objschema = %upper(%trim(objschema));
+stmt = 'select oalib, oaname, ' +
+                'oatype, oausr, ' +
+                'oaobja, oaown, ' +
+                'oaanam, oagrpn, ' + 
+                'oaopr, oaomgt, ' + 
+                'oaexs, oaalt, ' +
+                'oaref, oaread, ' + 
+                'oaadd, oaupd, ' + 
+                'oadlt, oaexec ' + 
+                'from ddscinfo.objaut where oalib = ''' + %trim(objschema) + '''';
+exec sql prepare prelst from :stmt;
+exec sql declare lst cursor for prelst;
+exec sql open lst using :objschema;
+exec sql fetch next from lst into :objaut.oalib, :objaut.oaname,
+                                  :objaut.oatype, :objaut.oausr,
+                                  :objaut.oaobja, :objaut.oaown,
+                                  :objaut.oaanam, :objaut.oagrpn,
+                                  :objaut.oaopr, :objaut.oaomgt,
+                                  :objaut.oaexs, :objaut.oaalt,
+                                  :objaut.oaref, :objaut.oaread,
+                                  :objaut.oaadd, :objaut.oaupd,
+                                  :objaut.oadlt, :objaut.oaexec;
 dow sqlcod = 0;
     if sqlcod = 0;
-        if %scan('Q' : %trim(liblst.objlongschema)) <> 1 and
-            %scan('#LIBRARY' : %trim(liblst.objlongschema)) <> 1 and
-            %scan('MAPEPIRE_T' : %trim(liblst.objlongschema)) <> 1 and
-            %scan('HOYA' : %trim(liblst.objlongschema)) <> 1 and
-            %scan('PMEDH' : %trim(liblst.objlongschema)) <> 1 and
-            %scan('RMT' : %trim(liblst.objlongschema)) <> 1 and
-            %scan('STAGE' : %trim(liblst.objlongschema)) <> 1 and
-            %scan('SYSIBM' : %trim(liblst.objlongschema)) <> 1 and
-            %scan('SYSIBMADM' : %trim(liblst.objlongschema)) <> 1 and
-            %scan('SYSPROC' : %trim(liblst.objlongschema)) <> 1 and
-            %scan('SYSTOOLS' : %trim(liblst.objlongschema)) <> 1;
+        if objaut.oausr = '*PUBLIC';
             tot_count += 1;
-            // prepare file name
-            // if %trim(liblst.save_volume) = '';
-            target_libnm = 'DDSCINFO';
-            target_filnm = 'OBJAUT';
-            // else;
-            //     target_libnm = 'DDSCINFO';
-            //     target_filnm = 'OBJAUT' + %subst(%trim(liblst.save_volume) : 1 : 3);
-            // endif;
-            clear logtxt;
-            logsts = 'C';
-            logtxt = 'Search from  : ' + target_libnm + '.' + target_filnm;
-            writelog(logsts : logtxt);
-            //
-            stmt = 'select oaname from ' + %trim(target_libnm) + '.' + %trim(target_filnm) + ' ' +
-                        'where oalib = ? ' +
-                        'and oaname = ? ' +
-                        'and oatype = ? ' +
-                        'and oausr = ''*PUBLIC'' ' +
-                        'fetch first 1 row only';
-            exec sql prepare preobjFound from :stmt;
-            exec sql declare objFound cursor for preobjFound;
-            exec sql open objFound using :liblst.objlongschema, :liblst.objname, :liblst.objtype;
-            exec sql fetch from objFound into :objNotFound;
-            if objNotFound <> ''; 
-                check_owner(target_libnm : target_filnm : liblst.objlongschema : liblst.objname : liblst.objtype : chg_count : err_count); // chgobjown
-                check_autl(target_libnm : target_filnm : liblst.objlongschema : liblst.objname : liblst.objtype : chg_count : err_count); // grtobjaut
-                check_obja(target_libnm : target_filnm : liblst.objlongschema : liblst.objname : liblst.objtype : chg_count : err_count); // grtobjaut
-            else;
-                err_count += 1;
-                clear logtxt;
-                logsts = 'C';
-                logtxt = 'ERR' + %editc(err_count:'X') + '. Target not found in the file					: ' + 
-                liblst.objlongschema + '  ' + liblst.objname + '  ' + liblst.objtype;
-                writelog(logsts : logtxt);
-            endif;                       
-            exec sql close objFound;                      
         endif;
-        exec sql fetch next from liblst into :liblst;
+        exec sql values(select 
+                        user_name, 
+                        coalesce(OBJ_AUTH,'*NONE') as OBJ_AUTH, 
+                        coalesce(OWNER,'*NONE') as OWNER, 
+                        COALESCE(AUTL,'*NONE') as AUTL, 
+                        coalesce(GROUP,' ') as GROUP, 
+                        coalesce(OBJOPER,' ') as OBJOPER, 
+                        coalesce(OBJMGT,' ') as OBJMGT, 
+                        coalesce(OBJEXIST,' ') as OBJEXIST, 
+                        coalesce(OBJALTER,' ') as OBJALTER, 
+                        coalesce(OBJREF,' ') as OBJREF, 
+                        coalesce(DATA_READ,' ') as DATA_READ, 
+                        coalesce(DATA_ADD,' ') as DATA_ADD, 
+                        coalesce(DATA_UPD,' ') as DATA_UPD, 
+                        coalesce(DATA_DEL,' ') as DATA_DEL, 
+                        coalesce(DATA_EXEC,' ') as DATA_EXEC 
+                        from qsys2.object_privileges 
+                        where sys_dname = :objaut.oalib and 
+                                sys_oname = :objaut.oaname and
+                                objtype = :objaut.oatype and
+                                user_name = :objaut.oausr )
+                into    :lst.user_name, 
+                        :lst.OBJ_AUTH, :lst.OWNER, 
+                        :lst.AUTL, :lst.GROUP, 
+                        :lst.OBJOPER, :lst.OBJMGT, 
+                        :lst.OBJEXIST, :lst.OBJALTER, 
+                        :lst.OBJREF, :lst.DATA_READ, 
+                        :lst.DATA_ADD, :lst.DATA_UPD, 
+                        :lst.DATA_DEL, :lst.DATA_EXEC;
+        if sqlcod = 0; 
+            if %trim(objaut.oausr) = '*GROUP';
+                objaut.oausr = %trim(objaut.oagrpn);
+            endif;
+            if %trim(objaut.oaown) <> %trim(lst.OWNER);
+                cmdstr = 'CHGOBJOWN OBJ(' + %trim(objaut.oalib) + 
+                                    '/' + %trim(objaut.oaname) + 
+                                    ') OBJTYPE(' + %trim(objaut.oatype) + 
+                                    ') NEWOWN(' + %trim(objaut.oaown) + ')';
+                snd-msg %trim(cmdstr);
+                logsts = 'C';
+                logtxt = 'Command: ' + %trim(cmdstr);
+                writelog(logsts : logtxt);
+                returnCode = syscmd(cmdstr);
+            endif;
+            if %trim(objaut.oaanam) <> %trim(lst.AUTL);
+                cmdstr = 'GRTOBJAUT OBJ(' + %trim(objaut.oalib) + 
+                                    '/' + %trim(objaut.oaname) + 
+                                    ') OBJTYPE(' + %trim(objaut.oatype) + 
+                                    ') AUTL(' + %trim(objaut.oaanam) + ')';
+                logsts = 'C';
+                logtxt = 'Command: ' + %trim(cmdstr);
+                writelog(logsts : logtxt);
+                returnCode = syscmd(cmdstr);
+            endif;
+            if %scan('USER' : %trim(objaut.oaobja)) <> 1;
+                if %trim(objaut.oaobja) <> %trim(lst.OBJ_AUTH);
+                    cmdstr = 'GRTOBJAUT OBJ(' + %trim(objaut.oalib) + 
+                                '/' + %trim(objaut.oaname) + 
+                                ') OBJTYPE(' + %trim(objaut.oatype) + 
+                                ') USER(' + %trim(objaut.oausr) + 
+                                ') AUT(' + %trim(objaut.oaobja) + 
+                                ') REPLACE(*YES)';
+                    logsts = 'C';
+                    logtxt = 'Command: ' + %trim(cmdstr);
+                    writelog(logsts : logtxt);
+                    returnCode = syscmd(cmdstr);
+                endif;
+            else; // = 'USER DEFINED'
+                grtcmdstr = 'GRTOBJAUT OBJ(' + %trim(objaut.oalib) + 
+                            '/' + %trim(objaut.oaname) + 
+                            ') OBJTYPE(' + %trim(objaut.oatype) + 
+                            ') USER(' + %trim(objaut.oausr) + 
+                            ') AUT(';
+                rvkcmdstr = 'RVKOBJAUT OBJ(' + %trim(objaut.oalib) + 
+                            '/' + %trim(objaut.oaname) + 
+                            ') OBJTYPE(' + %trim(objaut.oatype) + 
+                            ') USER(' + %trim(objaut.oausr) + 
+                            ') AUT(';
+                if %trim(objaut.oaopr) = 'X';
+                    objaut.oaopr = 'YES';
+                    if %trim(objaut.oaopr) <> %trim(lst.OBJOPER);
+                        snd-msg 'oaopr:' + %trim(objaut.oaopr) + '  ' + %trim(lst.OBJOPER);
+                        grtcmdstr = %trimr(grtcmdstr) + ' *OBJOPR';
+                    endif;
+                else;
+                    objaut.oaopr = 'NO';
+                    if %trim(objaut.oaopr) <> %trim(lst.OBJOPER);
+                        snd-msg 'oaopr:' + %trim(objaut.oaopr) + '  ' + %trim(lst.OBJOPER);
+                        rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJOPR';
+                    endif;                    
+                endif;
+                if %trim(objaut.oaomgt) = 'X';
+                    objaut.oaomgt = 'YES';
+                    if %trim(objaut.oaomgt) <> %trim(lst.OBJMGT);
+                        snd-msg 'oaomgt:' + %trim(objaut.oaomgt) + '  ' + %trim(lst.OBJMGT);
+                        grtcmdstr = %trimr(grtcmdstr) + ' *OBJMGT';
+                    endif;
+                else;
+                    objaut.oaomgt = 'NO';
+                    if %trim(objaut.oaomgt) <> %trim(lst.OBJMGT);
+                        snd-msg 'oaomgt:' + %trim(objaut.oaomgt) + '  ' + %trim(lst.OBJMGT);
+                        rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJMGT';
+                    endif;                    
+                endif;
+                if %trim(objaut.oaexs) = 'X';
+                    objaut.oaexs = 'YES';
+                    if %trim(objaut.oaexs) <> %trim(lst.OBJEXIST);
+                        snd-msg 'oaexs:' + %trim(objaut.oaexs) + '  ' + %trim(lst.OBJEXIST);
+                        grtcmdstr = %trimr(grtcmdstr) + ' *OBJEXIST';
+                    endif;
+                else;
+                    objaut.oaexs = 'NO';
+                    if %trim(objaut.oaexs) <> %trim(lst.OBJEXIST);
+                        snd-msg 'oaexs:' + %trim(objaut.oaexs) + '  ' + %trim(lst.OBJEXIST);
+                        rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJEXIST';
+                    endif;                    
+                endif;
+                if %trim(objaut.oaalt) = 'X';
+                    objaut.oaalt = 'YES';
+                    if %trim(objaut.oaalt) <> %trim(lst.OBJALTER);
+                        snd-msg 'oaalt:' + %trim(objaut.oaalt) + '  ' + %trim(lst.OBJALTER);
+                        grtcmdstr = %trimr(grtcmdstr) + ' *OBJALTER';
+                    endif;
+                else;
+                    objaut.oaalt = 'NO';
+                    if %trim(objaut.oaalt) <> %trim(lst.OBJALTER);
+                        snd-msg 'oaalt:' + %trim(objaut.oaalt) + '  ' + %trim(lst.OBJALTER);
+                        rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJALTER';
+                    endif;                    
+                endif;
+                if %trim(objaut.oaref) = 'X';
+                    objaut.oaref = 'YES';
+                    if %trim(objaut.oaref) <> %trim(lst.OBJREF);
+                        snd-msg 'oaref:' + %trim(objaut.oaref) + '  ' + %trim(lst.OBJREF);
+                        grtcmdstr = %trimr(grtcmdstr) + ' *OBJREF';
+                    endif;
+                else;
+                    objaut.oaref = 'NO';
+                    if %trim(objaut.oaref) <> %trim(lst.OBJREF);
+                        snd-msg 'oaref:' + %trim(objaut.oaref) + '  ' + %trim(lst.OBJREF);
+                        rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJREF';
+                    endif;                    
+                endif;
+                if %trim(objaut.oaread) = 'X';
+                    objaut.oaread = 'YES';
+                    if %trim(objaut.oaread) <> %trim(lst.DATA_READ);
+                        snd-msg 'oaread:' + %trim(objaut.oaread) + '  ' + %trim(lst.DATA_READ);
+                        grtcmdstr = %trimr(grtcmdstr) + ' *READ';
+                    endif;
+                else;
+                    objaut.oaread = 'NO';
+                    if %trim(objaut.oaread) <> %trim(lst.DATA_READ);
+                        snd-msg 'oaread:' + %trim(objaut.oaread) + '  ' + %trim(lst.DATA_READ);
+                        rvkcmdstr = %trimr(rvkcmdstr) + ' *READ';
+                    endif;                    
+                endif;
+                if %trim(objaut.oaadd) = 'X';
+                    objaut.oaadd = 'YES';
+                    if %trim(objaut.oaadd) <> %trim(lst.DATA_ADD);
+                        snd-msg 'oaadd:' + %trim(objaut.oaadd) + '  ' + %trim(lst.DATA_ADD);
+                        grtcmdstr = %trimr(grtcmdstr) + ' *ADD';
+                    endif;
+                else;
+                    objaut.oaadd = 'NO';
+                    if %trim(objaut.oaadd) <> %trim(lst.DATA_ADD);
+                        snd-msg 'oaadd:' + %trim(objaut.oaadd) + '  ' + %trim(lst.DATA_ADD);
+                        rvkcmdstr = %trimr(rvkcmdstr) + ' *ADD';
+                    endif;                    
+                endif;
+                if %trim(objaut.oaupd) = 'X';
+                    objaut.oaupd = 'YES';
+                    if %trim(objaut.oaupd) <> %trim(lst.DATA_UPD);
+                        snd-msg 'oaupd:' + %trim(objaut.oaupd) + '  ' + %trim(lst.DATA_UPD);
+                        grtcmdstr = %trimr(grtcmdstr) + ' *UPD';
+                    endif;
+                else;
+                    objaut.oaupd = 'NO';
+                    if %trim(objaut.oaupd) <> %trim(lst.DATA_UPD);
+                        snd-msg 'oaupd:' + %trim(objaut.oaupd) + '  ' + %trim(lst.DATA_UPD);
+                        rvkcmdstr = %trimr(rvkcmdstr) + ' *UPD';
+                    endif;                    
+                endif;
+                if %trim(objaut.oadlt) = 'X';
+                    objaut.oadlt = 'YES';
+                    if %trim(objaut.oadlt) <> %trim(lst.DATA_DEL);
+                        snd-msg 'oadlt:' + %trim(objaut.oadlt) + '  ' + %trim(lst.DATA_DEL);
+                        grtcmdstr = %trimr(grtcmdstr) + ' *DLT';
+                    endif;
+                else;
+                    objaut.oadlt = 'NO';
+                    if %trim(objaut.oadlt) <> %trim(lst.DATA_DEL);
+                        snd-msg 'oadlt:' + %trim(objaut.oadlt) + '  ' + %trim(lst.DATA_DEL);
+                        rvkcmdstr = %trimr(rvkcmdstr) + ' *DLT';
+                    endif;                    
+                endif;
+                if %trim(objaut.oaexec) = 'X';
+                    objaut.oaexec = 'YES';
+                    if %trim(objaut.oaexec) <> %trim(lst.DATA_EXEC);
+                        snd-msg 'oaexec:' + %trim(objaut.oaexec) + '  ' + %trim(lst.DATA_EXEC);
+                        grtcmdstr = %trimr(grtcmdstr) + ' *EXECUTE';
+                    endif;
+                else;
+                    objaut.oaexec = 'NO';
+                    if %trim(objaut.oaexec) <> %trim(lst.DATA_EXEC);
+                        snd-msg 'oaexec:' + %trim(objaut.oaexec) + '  ' + %trim(lst.DATA_EXEC);
+                        rvkcmdstr = %trimr(rvkcmdstr) + ' *EXECUTE';
+                    endif;                    
+                endif;
+                grtcmdstr = %trim(grtcmdstr) + ') REPLACE(*YES)';
+                rvkcmdstr = %trim(rvkcmdstr) + ')';
+                logsts = 'C';
+                logtxt = 'Grant command: ' + %trim(grtcmdstr);
+                writelog(logsts : logtxt);
+                returnCode = syscmd(grtcmdstr);
+                logsts = 'C';
+                logtxt = 'Revoke command: ' + %trim(rvkcmdstr);
+                writelog(logsts : logtxt);
+                returnCode = syscmd(rvkcmdstr);  
+                clear grtcmdstr;
+                clear rvkcmdstr;
+            endif;
+        else; // file exist, current not exist, so grant
+            grtcmdstr = 'GRTOBJAUT OBJ(' + %trim(objaut.oalib) + 
+                            '/' + %trim(objaut.oaname) + 
+                            ') OBJTYPE(' + %trim(objaut.oatype) + 
+                            ') USER(' + %trim(objaut.oausr) + 
+                            ') AUT(';
+            rvkcmdstr = 'RVKOBJAUT OBJ(' + %trim(objaut.oalib) + 
+                            '/' + %trim(objaut.oaname) + 
+                            ') OBJTYPE(' + %trim(objaut.oatype) + 
+                            ') USER(' + %trim(objaut.oausr) + 
+                            ') AUT(';
+            if %trim(objaut.oaopr) = 'X';
+                objaut.oaopr = 'YES';
+                grtcmdstr = %trimr(grtcmdstr) + ' *OBJOPR';
+            else;
+                objaut.oaopr = 'NO';
+                rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJOPR';
+            endif;
+            if %trim(objaut.oaomgt) = 'X';
+                objaut.oaomgt = 'YES';
+                grtcmdstr = %trimr(grtcmdstr) + ' *OBJMGT';
+            else;
+                objaut  = 'NO';
+                rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJMGT';
+            endif;
+            if %trim(objaut.oaexs) = 'X';
+                objaut.oaexs = 'YES';
+                grtcmdstr = %trimr(grtcmdstr) + ' *OBJEXIST';
+            else;
+                objaut.oaexs = 'NO';
+                rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJEXIST';
+            endif;
+            if %trim(objaut.oaalt) = 'X';
+                objaut.oaalt = 'YES';
+                grtcmdstr = %trimr(grtcmdstr) + ' *OBJALTER';
+            else;
+                objaut.oaalt = 'NO';
+                rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJALTER';
+            endif;
+            if %trim(objaut.oaref) = 'X';
+                objaut.oaref = 'YES';
+                grtcmdstr = %trimr(grtcmdstr) + ' *OBJREF';
+            else;
+                objaut.oaref = 'NO';
+                rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJREF';
+            endif;
+            if %trim(objaut.oaread) = 'X';
+                objaut.oaread = 'YES';
+                grtcmdstr = %trimr(grtcmdstr) + ' *READ';
+            else;
+                objaut.oaread = 'NO';
+                rvkcmdstr = %trimr(rvkcmdstr) + ' *READ';
+            endif;
+            if %trim(objaut.oaadd) = 'X';
+                objaut.oaadd = 'YES';
+                grtcmdstr = %trimr(grtcmdstr) + ' *ADD';
+            else;
+                objaut.oaadd = 'NO';
+                rvkcmdstr = %trimr(rvkcmdstr) + ' *ADD';
+            endif;
+            if %trim(objaut.oaupd) = 'X';
+                objaut.oaupd = 'YES';
+                grtcmdstr = %trimr(grtcmdstr) + ' *UPD';
+            else;
+                objaut.oaupd = 'NO';
+                rvkcmdstr = %trimr(rvkcmdstr) + ' *UPD';
+            endif;
+            if %trim(objaut.oadlt) = 'X';
+                objaut.oadlt = 'YES';
+                grtcmdstr = %trimr(grtcmdstr) + ' *DLT';
+            else;
+                objaut.oadlt = 'NO';
+                rvkcmdstr = %trimr(rvkcmdstr) + ' *DLT';
+            endif;
+            if %trim(objaut.oaexec) = 'X';
+                objaut.oaexec = 'YES';
+                grtcmdstr = %trimr(grtcmdstr) + ' *EXECUTE';
+            else;
+                objaut.oaexec = 'NO';
+                rvkcmdstr = %trimr(rvkcmdstr) + ' *EXECUTE';
+            endif;
+            grtcmdstr = %trim(grtcmdstr) + ') REPLACE(*YES)';
+            rvkcmdstr = %trim(rvkcmdstr) + ')';
+            logsts = 'C';
+            logtxt = 'Grant command: ' + %trim(grtcmdstr);
+            writelog(logsts : logtxt);
+            returnCode = syscmd(grtcmdstr);    
+            clear grtcmdstr;
+            clear rvkcmdstr;
+        endif;
+        clear lst;
+        exec sql fetch next from lst into :objaut.oalib, :objaut.oaname,
+                                  :objaut.oatype, :objaut.oausr,
+                                  :objaut.oaobja, :objaut.oaown,
+                                  :objaut.oaanam, :objaut.oagrpn,
+                                  :objaut.oaopr, :objaut.oaomgt,
+                                  :objaut.oaexs, :objaut.oaalt,
+                                  :objaut.oaref, :objaut.oaread,
+                                  :objaut.oaadd, :objaut.oaupd,
+                                  :objaut.oadlt, :objaut.oaexec;
     endif;
 enddo;
-exec sql close liblst;
+exec sql close lst;
 
-clear logtxt;
-logsts = 'C';
-logtxt = '----------------------------------------------------------------------------------------------------------------';
-writelog(logsts : logtxt);
-
-snd-msg 'Total Count  : ' + %trim(%char(tot_count));
-clear logtxt;
-logsts = 'C';
-logtxt = 'Total Count  : ' + %trim(%char(tot_count));
-writelog(logsts : logtxt);
-
-snd-msg 'Changed Count: ' + %trim(%char(chg_count));
-clear logtxt;
-logsts = 'C';
-logtxt = 'Changed Count: ' + %trim(%char(chg_count));
-writelog(logsts : logtxt);
-
-snd-msg 'Error Count  : ' + %trim(%char(err_count));
-clear logtxt;
-logsts = 'C';
-logtxt = 'Error Count  : ' + %trim(%char(err_count));
-writelog(logsts : logtxt);
-//
-clear logtxt;
-logsts = 'C';
-logtxt = 'Authority comparison job end';
-writelog(logsts : logtxt);
-//
-clear logtxt;
-logsts = 'E';
-writelog(logsts : logtxt);
-//
+clear objaut;
+clear lst;
+stmt = 'select sys_dname, sys_oname, objtype, USER_NAME ' +
+            'from qsys2.object_privileges ' +
+            'where sys_dname = ? ';
+exec sql prepare nxtcurlst from :stmt;
+exec sql declare curlst cursor for nxtcurlst;
+exec sql open curlst using :objschema;
+exec sql fetch next from curlst into :lst.sys_dname, :lst.sys_oname,
+                                  :lst.objtype, :lst.user_name;
+dow sqlcod = 0;
+    if sqlcod = 0;
+        if %trim(lst.sys_oname) = 'ADDMIGS73' and %trim(lst.user_name) = 'QSECOFR';
+            snd-msg 'Warning!';
+        endif;
+        stmt = 'select oalib, oaname, ' +
+                        'oatype, oausr ' +
+                        'from ddscinfo.objaut ' +
+                        'where oalib = ? and ' +
+                        'oaname = ? and ' +
+                        'oatype = ? and ' +
+                        'oausr = ? ';
+        exec sql prepare nxtfillst from :stmt;
+        exec sql declare fillst cursor for nxtfillst;
+        exec sql open fillst using :lst.sys_dname,:lst.sys_oname,:lst.objtype,:lst.user_name;
+        exec sql fetch next from fillst into :objaut.oalib, :objaut.oaname,
+                                  :objaut.oatype, :objaut.oausr;
+        if sqlcod = 0; // current exist, file exist, compare
+        else; // current exist, file not exist
+            if %trim(lst.sys_oname) = 'ADDMIGS73' and %trim(lst.user_name) = 'QSECOFR';
+                snd-msg 'Warning2!';
+            endif;
+            grtcmdstr = 'GRTOBJAUT OBJ(' + %trim(lst.sys_dname) + 
+                            '/' + %trim(lst.sys_oname) + 
+                            ') OBJTYPE(' + %trim(lst.objtype) + 
+                            ') USER(' + %trim(lst.user_name) + 
+                            ') AUT(';
+            rvkcmdstr = 'RVKOBJAUT OBJ(' + %trim(lst.sys_dname) + 
+                            '/' + %trim(lst.sys_oname) + 
+                            ') OBJTYPE(' + %trim(lst.objtype) + 
+                            ') USER(' + %trim(lst.user_name) + 
+                            ') AUT(*ALL)';
+            logsts = 'C';
+            logtxt = 'Revoke command: ' + %trim(rvkcmdstr);
+            writelog(logsts : logtxt);
+            returnCode = syscmd(rvkcmdstr);
+            clear grtcmdstr;
+            clear rvkcmdstr;
+        endif;
+        clear objaut;
+        exec sql close fillst;
+        exec sql fetch next from curlst into :lst.sys_dname, :lst.sys_oname,
+                                  :lst.objtype, :lst.user_name;
+    endif;
+enddo;
+exec sql close curlst;
+snd-msg 'tot_count: ' + %trim(%char(tot_count));
 *inlr = *on;
 return;
-
-dcl-proc execute_change;
-    // option code: OWNER - owner diff
-    //              AUTHL - auth_list diff
-    //              OBJAU - obj_authority diff
-    //              OBJNA - obj_authority not found
-    dcl-pi *n;
-        option char(5);
-        data char(100);
-        objlongschema char(10);
-        objname char(10);
-        objtype char(7);
-        chg_count packed(5:0);
-        err_count packed(5:0);
-    end-pi;
-    dcl-pr syscmd int(10) ExtProc('system');
-        *n Pointer Value Options(*String);
-    end-pr;
-    dcl-s cmdstr char(800);
-    dcl-s returnCode int(5);
-    dcl-s logsts char(1); // T: Log Title  C: Log Continue  E: Log Ending)
-    dcl-s logtxt char(1500);
-    //
-    select;
-        when option = 'OWNER';
-            clear cmdstr;
-            // CHGOBJOWN OBJ(XXX/XXX) OBJTYPE(*XXX) NEWOWN(XXX)
-            cmdstr = 'CHGOBJOWN OBJ(' + %trim(objlongschema) + '/' + %trim(objname) + 
-                        ') OBJTYPE(' + %trim(objtype) + ') NEWOWN(' + %trim(data) + ')';
-            clear logtxt;
-            logsts = 'C';
-            logtxt = 'Command preview: [' + %trim(cmdstr) + ']';
-            writelog(logsts : logtxt);
-            returnCode = syscmd(cmdstr);
-            if returnCode <> 0;
-                err_count += 1;
-                clear logtxt;
-                logsts = 'C';
-                logtxt = 'ERR' + %editc(err_count:'X') + 
-                            '. Command failed. Please check. (' +
-                            %trim(objlongschema) + '  ' + %trim(objname) + '  ' + %trim(objtype) + ')';
-                writelog(logsts : logtxt);
-            endif;
-
-        when option = 'AUTHL';
-            clear cmdstr;
-            // GRTOBJAUT OBJ(XXX/XXX) OBJTYPE(*XXX) AUTL(XXX)
-            cmdstr = 'GRTOBJAUT OBJ(' + %trim(objlongschema) + '/' + %trim(objname) + 
-                        ') OBJTYPE(' + %trim(objtype) + ') AUTL(' + %trim(data) + ')';
-            clear logtxt;
-            logsts = 'C';
-            logtxt = 'Command preview: [' + %trim(cmdstr) + ']';
-            writelog(logsts : logtxt);
-            returnCode = syscmd(cmdstr);
-            if returnCode <> 0;
-                err_count += 1;
-                clear logtxt;
-                logsts = 'C';
-                logtxt = 'ERR' + %editc(err_count:'X') + 
-                            '. Command failed. Please check. (' +
-                            %trim(objlongschema) + '  ' + %trim(objname) + '  ' + %trim(objtype) + ')';
-                writelog(logsts : logtxt);
-            endif;
-
-        when option = 'OBJAU';
-            clear cmdstr;
-            // GRTOBJAUT OBJ(XXX/XXX) OBJTYPE(XXX) USER(XXX) AUT(XXX)
-            cmdstr = 'GRTOBJAUT OBJ(' + %trim(objlongschema) + '/' + %trim(objname) + 
-                        ') OBJTYPE(' + %trim(objtype) + ') USER(' + %trim(%subst(data : 1 : 10)) + 
-                        ') AUT(' + %scanrpl(',' : ' ' : %trim(%subst(data : 11 : 80))) + 
-                        ') REPLACE(*YES)';
-            clear logtxt;
-            logsts = 'C';
-            logtxt = 'Command preview: [' + %trim(cmdstr) + ']';
-            writelog(logsts : logtxt);
-            returnCode = syscmd(cmdstr);
-            if returnCode <> 0;
-                err_count += 1;
-                clear logtxt;
-                logsts = 'C';
-                logtxt = 'ERR' + %editc(err_count:'X') + 
-                            '. Command failed. Please check. (' +
-                            %trim(objlongschema) + '  ' + %trim(objname) + '  ' + %trim(objtype) + ')';
-                writelog(logsts : logtxt);
-            endif;
-
-        when option = 'OBJNA';
-            clear cmdstr;
-            // GRTOBJAUT OBJ(XXX/XXX) OBJTYPE(XXX) USER(XXX) AUT(XXX)
-            cmdstr = 'GRTOBJAUT OBJ(' + %trim(objlongschema) + '/' + %trim(objname) + 
-                        ') OBJTYPE(' + %trim(objtype) + ') USER(' + %trim(%subst(data : 1 : 10)) + 
-                        ') AUT(' + %scanrpl(',' : ' ' : %trim(%subst(data : 11 : 80))) + 
-                        ') REPLACE(*YES)';
-            clear logtxt;
-            logsts = 'C';
-            logtxt = 'Command preview: [' + %trim(cmdstr) + ']';
-            writelog(logsts : logtxt);
-            returnCode = syscmd(cmdstr);
-            if returnCode <> 0;
-                err_count += 1;
-                clear logtxt;
-                logsts = 'C';
-                logtxt = 'ERR' + %editc(err_count:'X') + 
-                            '. Command failed. Please check. (' +
-                            %trim(objlongschema) + '  ' + %trim(objname) + '  ' + %trim(objtype) + ')';
-                writelog(logsts : logtxt);
-            endif;
-
-        other;
-            clear logtxt;
-            logsts = 'C';
-            logtxt = 'ERR' + %editc(err_count:'X') + 
-                        '. Unrecorgnized command. Please check. (' + 
-                        %trim(objlongschema) + '  ' + %trim(objname) + '  ' + %trim(objtype) + ')';
-            writelog(logsts : logtxt);
-    endsl;
-    //
-    return;
-end-proc;
-
-dcl-proc check_obja;
-    dcl-pi *n;
-        target_libnm char(10);
-        target_filnm char(10);
-        objlongschema char(10);
-        objname char(10);
-        objtype char(7);
-        chg_count packed(5:0);
-        err_count packed(5:0);
-    end-pi;
-    dcl-s cur_usr char(10);
-    dcl-s fil_usr char(10);
-    dcl-s cur_grpn char(10);
-    dcl-s fil_grpn char(10);
-    dcl-s cur_objobja char(12);
-    dcl-s fil_objobja char(12);
-    dcl-s cur_objamgt char(3);
-    dcl-s fil_objamgt char(3);
-    dcl-s cur_objopr char(3);
-    dcl-s fil_objopr char(3);
-    dcl-s cur_objomgt char(3);
-    dcl-s fil_objomgt char(3);
-    dcl-s cur_objexist char(3);
-    dcl-s fil_objexist char(3);
-    dcl-s cur_objalter char(3);
-    dcl-s fil_objalter char(3);
-    dcl-s cur_objref char(3);
-    dcl-s fil_objref char(3);
-    dcl-s cur_read char(3);
-    dcl-s fil_read char(3);
-    dcl-s cur_add char(3);
-    dcl-s fil_add char(3);
-    dcl-s cur_upd char(3);
-    dcl-s fil_upd char(3);
-    dcl-s cur_dlt char(3);
-    dcl-s fil_dlt char(3);
-    dcl-s cur_exec char(3);
-    dcl-s fil_exec char(3);
-    dcl-s option char(5);
-    dcl-s data char(100);
-    //
-    stmt = 'select oausr, oaobja, oagrpn, oaopr, oaomgt, oaexs, oaalt, oaref, ' + 
-                'oaread, oaadd, oaupd, oadlt, oaexec ' +
-                'from '+ %trim(target_libnm) + '.' + %trim(target_filnm) + ' ' +
-                'where oalib = ? ' +
-                'and oaname = ? ' +
-                'and oatype = ?';
-    exec sql prepare preautcur from :stmt;
-    exec sql declare autcur cursor for preautcur;
-    exec sql open autcur using :objlongschema, :objname, :objtype;
-    exec sql fetch next from autcur into :fil_usr, :fil_objobja, :fil_grpn, :fil_objopr, :fil_objomgt, 
-                :fil_objexist, :fil_objalter, :fil_objref, :fil_read, :fil_add, :fil_upd, :fil_dlt, :fil_exec;
-    dow sqlcod = 0;
-        if sqlcod = 0;
-            if fil_usr = '*GROUP';
-                fil_usr = %trim(fil_grpn);
-            endif;
-            exec sql values(select coalesce(authorization_name,'') as authorization_name, 
-                            coalesce(object_authority,'') as object_authority,
-                            object_operational, object_management, object_existence,
-                            object_alter, object_reference,
-                            data_read, data_add, data_update, data_delete, data_execute 
-                            from qsys2.object_privileges
-                            where sys_dname = :objlongschema
-                            and sys_oname = :objname
-                            and objtype = :objtype
-                            and authorization_name = :fil_usr
-                            fetch first 1 row only)
-                    into :cur_usr, :cur_objobja, :cur_objopr, :cur_objomgt, :cur_objexist, 
-                    :cur_objalter, :cur_objref, :cur_read, :cur_add, :cur_upd, :cur_dlt, :cur_exec;
-            if cur_usr <> '';
-                if %trim(cur_objobja) = 'USER DEFINED';
-                    cur_objobja = 'USER DEF';
-                endif;
-                if %trim(fil_objobja) <> %trim(cur_objobja);
-                    if %trim(fil_objobja) = 'USER DEF';
-                        chg_count += 1;
-                        clear logtxt;
-                        logsts = 'C';
-                        logtxt = 'CHG' + %editc(chg_count:'X') + 
-                                '. Obj Authority Diff (FIL_USRDEF)				: ' + objlongschema + 
-                                '  ' + objname + '  ' + objtype;
-                        writelog(logsts : logtxt);
-                
-                        clear logtxt;
-                        logsts = 'C';
-                        logtxt = '-  Current user / obja									: ' + cur_usr + 
-                                '  ' + cur_objobja;
-                        writelog(logsts : logtxt);
-                        clear logtxt;
-                        logsts = 'C';
-                        logtxt = '-  File user / obja										: ' + fil_usr + 
-                                '  ' + fil_objobja;
-                        writelog(logsts : logtxt);
-                        
-                        option = 'OBJAU';
-                        data = fil_usr + ',';
-                        if %trim(fil_objopr) = 'X';
-                            data = %trimr(data) + '*OBJOPR,';
-                        endif;
-                        if %trim(fil_objomgt) = 'X';
-                            data = %trimr(data) + '*OBJMGT,';
-                        endif;
-                        if %trim(fil_objexist) = 'X';
-                            data = %trimr(data) + '*OBJEXIST,';
-                        endif;
-                        if %trim(fil_objalter) = 'X';
-                            data = %trimr(data) + '*OBJALTER,';
-                        endif;
-                        if %trim(fil_objref) = 'X';
-                            data = %trimr(data) + '*OBJREF,';
-                        endif;
-                        if %trim(fil_read) = 'X';
-                            data = %trimr(data) + '*READ,';
-                        endif;
-                        if %trim(fil_add) = 'X';
-                            data = %trimr(data) + '*ADD,';
-                        endif;
-                        if %trim(fil_upd) = 'X';
-                            data = %trimr(data) + '*UPD,';
-                        endif;
-                        if %trim(fil_dlt) = 'X';
-                            data = %trimr(data) + '*DLT,';
-                        endif;
-                        if %trim(fil_exec) = 'X';
-                            data = %trimr(data) + '*EXECUTE';
-                        endif;
-                        execute_change(option : data : objlongschema : objname : objtype : chg_count : err_count);                    
-                    else;
-                        chg_count += 1;
-                        clear logtxt;
-                        logsts = 'C';
-                        logtxt = 'CHG' + %editc(chg_count:'X') + 
-                                    '. Obj Authority Diff (FIL_NORMAL)				: ' + objlongschema + 
-                                    '  ' + objname + '  ' + objtype;
-                        writelog(logsts : logtxt);
-                
-                        clear logtxt;
-                        logsts = 'C';
-                        logtxt = '-  Current user / obja									: ' + cur_usr + 
-                                    '  ' + cur_objobja;
-                        writelog(logsts : logtxt);
-                        clear logtxt;
-                        logsts = 'C';
-                        logtxt = '-  File user / obja										: ' + fil_usr + 
-                                    '  ' + fil_objobja;
-                        writelog(logsts : logtxt);
-                        
-                        option = 'OBJAU';
-                        data = fil_usr + ',' + %trim(fil_objobja);
-                        execute_change(option : data : objlongschema : objname : objtype : chg_count : err_count);
-
-                    endif;  
-                elseif %trim(fil_objobja) = %trim(cur_objobja) and %trim(fil_objobja) = 'USER DEF';
-                    // Both file and current are USER DEFINED
-                    if %trim(cur_objopr) = 'YES';
-                        cur_objopr = 'X';
-                    else;
-                        cur_objopr = '';
-                    endif;
-                    if %trim(cur_objomgt) = 'YES';
-                        cur_objomgt = 'X';
-                    else;
-                        cur_objomgt = '';
-                    endif;
-                    if %trim(cur_objexist) = 'YES';
-                        cur_objexist = 'X';
-                    else;
-                        cur_objexist = '';
-                    endif;
-                    if %trim(cur_objalter) = 'YES';
-                        cur_objalter = 'X';
-                    else;
-                        cur_objalter = '';
-                    endif;
-                    if %trim(cur_objref) = 'YES';
-                        cur_objref = 'X';
-                    else;
-                        cur_objref = '';
-                    endif;
-                    if %trim(cur_read) = 'YES';
-                        cur_read = 'X';
-                    else;
-                        cur_read = '';                        
-                    endif;
-                    if %trim(cur_add) = 'YES';
-                        cur_add = 'X';
-                    else;
-                        cur_add = '';
-                    endif;
-                    if %trim(cur_upd) = 'YES';
-                        cur_upd = 'X';
-                    else;
-                        cur_upd = '';
-                    endif;
-                    if %trim(cur_dlt) = 'YES';
-                        cur_dlt = 'X';
-                    else;
-                        cur_dlt = '';
-                    endif;
-                    if %trim(cur_exec) = 'YES';
-                        cur_exec = 'X';
-                    else; 
-                        cur_exec = '';
-                    endif;
-
-                    if %trim(fil_objopr) <> %trim(cur_objopr) or %trim(fil_objomgt) <> %trim(cur_objomgt) or
-                    %trim(fil_objexist) <> %trim(cur_objexist) or %trim(fil_objalter) <> %trim(cur_objalter) or
-                    %trim(fil_objref) <> %trim(cur_objref) or %trim(fil_read) <> %trim(cur_read) or
-                    %trim(fil_add) <> %trim(cur_add) or %trim(fil_upd) <> %trim(cur_upd) or
-                    %trim(fil_dlt) <> %trim(cur_dlt) or %trim(fil_exec) <> %trim(cur_exec);
-                        logsts = 'C';
-                        logtxt = 'objopr:' + %trim(fil_objopr) + '  ' + %trim(cur_objopr);
-                        writelog(logsts : logtxt);
-                        logsts = 'C';
-                        logtxt = 'objomgt:' + %trim(fil_objomgt) + '  ' + %trim(cur_objomgt);
-                        writelog(logsts : logtxt);
-                        logsts = 'C';
-                        logtxt = 'objexist:' + %trim(fil_objexist) + '  ' + %trim(cur_objexist);
-                        writelog(logsts : logtxt);
-                        logsts = 'C';
-                        logtxt = 'objalter:' + %trim(fil_objalter) + '  ' + %trim(cur_objalter);
-                        writelog(logsts : logtxt);
-                        logsts = 'C';
-                        logtxt = 'objref:' + %trim(fil_objref) + '  ' + %trim(cur_objref);
-                        writelog(logsts : logtxt);
-                        logsts = 'C';
-                        logtxt = 'dataread:' + %trim(fil_read) + '  ' + %trim(cur_read);
-                        writelog(logsts : logtxt);
-                        logsts = 'C';
-                        logtxt = 'dataadd:' + %trim(fil_add) + '  ' + %trim(cur_add);
-                        writelog(logsts : logtxt);
-                        logsts = 'C';
-                        logtxt = 'dataupd:' + %trim(fil_upd) + '  ' + %trim(cur_upd);
-                        writelog(logsts : logtxt);
-                        logsts = 'C';
-                        logtxt = 'datadlt:' + %trim(fil_dlt) + '  ' + %trim(cur_dlt);
-                        writelog(logsts : logtxt);
-                        logsts = 'C';
-                        logtxt = 'dataexec:' + %trim(fil_exec) + '  ' + %trim(cur_exec);
-                        writelog(logsts : logtxt);
-
-
-                        chg_count += 1;
-                        clear logtxt;
-                        logsts = 'C';
-                        logtxt = 'CHG' + %editc(chg_count:'X') + 
-                                    '. Obj Authority Diff (BOTH_USRDEF)			: ' + objlongschema + 
-                                    '  ' + objname + '  ' + objtype;
-                        writelog(logsts : logtxt);
-
-                        option = 'OBJAU';
-                        data = fil_usr + ',';
-                        if %trim(fil_objopr) = 'X';
-                            data = %trimr(data) + '*OBJOPR,';
-                        endif;
-                        if %trim(fil_objomgt) = 'X';
-                            data = %trimr(data) + '*OBJMGT,';
-                        endif;
-                        if %trim(fil_objexist) = 'X';
-                            data = %trimr(data) + '*OBJEXIST,';
-                        endif;
-                        if %trim(fil_objalter) = 'X';
-                            data = %trimr(data) + '*OBJALTER,';
-                        endif;
-                        if %trim(fil_objref) = 'X';
-                            data = %trimr(data) + '*OBJREF,';
-                        endif;
-                        if %trim(fil_read) = 'X';
-                            data = %trimr(data) + '*READ,';
-                        endif;
-                        if %trim(fil_add) = 'X';
-                            data = %trimr(data) + '*ADD,';
-                        endif;
-                        if %trim(fil_upd) = 'X';
-                            data = %trimr(data) + '*UPD,';
-                        endif;
-                        if %trim(fil_dlt) = 'X';
-                            data = %trimr(data) + '*DLT,';
-                        endif;
-                        if %trim(fil_exec) = 'X';
-                            data = %trimr(data) + '*EXECUTE';
-                        endif;
-                        execute_change(option : data : objlongschema : objname : objtype : chg_count : err_count);                    
-
-                    endif;
-                else;
-                endif;
-            else;
-                if %trim(fil_objobja) = 'USER DEF';
-                    chg_count += 1;
-                    clear logtxt;
-                    logsts = 'C';
-                    logtxt = 'CHG' + %editc(chg_count:'X') + 
-                                '. Obj Authority Not found (FIL_USRDEF)			: ' + objlongschema + 
-                                '  ' + objname + '  ' + objtype;
-                    writelog(logsts : logtxt);
-                    clear logtxt;
-                    logsts = 'C';
-                    logtxt = '-  File user / obja										: ' + fil_usr + 
-                                '  ' + fil_objobja;
-                    writelog(logsts : logtxt);
-                    option = 'OBJNA';
-                    data = fil_usr + ',' + %trim(fil_objobja);
-                    execute_change(option : data : objlongschema : objname : objtype : chg_count : err_count);
-                else;
-                    chg_count += 1;
-                    clear logtxt;
-                    logsts = 'C';
-                    logtxt = 'CHG' + %editc(chg_count:'X') + '. Obj Authority Not found (FIL_NORMAL)			: ' + objlongschema + '  ' + objname + '  ' + objtype;
-                    writelog(logsts : logtxt);
-                    clear logtxt;
-                    logsts = 'C';
-                    logtxt = '-  File user / obja										: ' + fil_usr + '  ' + fil_objobja;
-                    writelog(logsts : logtxt);
-                    option = 'OBJNA';
-                    data = fil_usr + ',' + %trim(fil_objobja);
-                    execute_change(option : data : objlongschema : objname : objtype : chg_count : err_count);
-                endif;
-            endif; 
-            exec sql fetch next from autcur into :fil_usr, :fil_objobja, :fil_grpn, :fil_objopr, :fil_objomgt, 
-                :fil_objexist, :fil_objalter, :fil_objref, :fil_read, :fil_add, :fil_upd, :fil_dlt, :fil_exec;
-        endif;      
-    enddo;
-    exec sql close autcur;
-    //
-    return;
-end-proc;
-
-dcl-proc check_autl;
-    dcl-pi *n;
-        target_libnm char(10);
-        target_filnm char(10);
-        objlongschema char(10);
-        objname char(10);
-        objtype char(7);
-        chg_count packed(5:0);
-        err_count packed(5:0);
-    end-pi;
-    dcl-s cur_autl char(10);
-    dcl-s fil_autl char(10);
-    dcl-s stmt char(1500);
-    dcl-s option char(5);
-    dcl-s data char(100);
-    //
-    clear cur_autl;
-    clear fil_autl;
-
-    exec sql values(select coalesce(autl,'*NONE') as autl from qsys2.object_privileges
-                            where sys_dname = :objlongschema
-                            and sys_oname = :objname
-                            and objtype = :objtype
-                            and user_name = '*PUBLIC'
-                            fetch first 1 row only)
-                    into :cur_autl;
-    if cur_autl = '';
-        err_count += 1;
-        clear logtxt;
-        logsts = 'C';
-        logtxt = 'ERR' + %editc(err_count:'X') + 
-                 '. Not authorized. Please re-run. (' + 
-                 %trim(objlongschema) + '  ' + %trim(objname) + '  ' + %trim(objtype) + ')';
-        writelog(logsts : logtxt);
-    endif;
-    stmt = 'select coalesce(oaanam,''*NONE'') as oaanam from ' + %trim(target_libnm) + '.' + %trim(target_filnm) + ' ' +
-                'where oalib = ? ' +
-                'and oaname = ? ' +
-                'and oatype = ? ' +
-                'and oausr = ''*PUBLIC'' ' +
-                'fetch first 1 row only';
-    exec sql prepare preautl from :stmt;
-    exec sql declare autl cursor for preautl;
-    exec sql open autl using :objlongschema, :objname, :objtype;
-    exec sql fetch from autl into :fil_autl;
-    // exec sql values(select coalesce(oaanam,'*NONE') as oaanam from ddscinfo.objaut
-    //                         where oalib = :objlongschema
-    //                         and oaname = :objname
-    //                         and oatype = :objtype
-    //                         and oausr = '*PUBLIC'
-    //                         fetch first 1 row only)
-    //                 into :fil_autl;
-    if fil_autl <> '';
-        if %trim(cur_autl) <> %trim(fil_autl);
-            chg_count += 1;
-            clear logtxt;
-            logsts = 'C';
-            logtxt = 'CHG' + %editc(chg_count:'X') + '. Auth_List Diff				 					: ' + objlongschema + 
-                        '  ' + objname + '  ' + objtype;
-            writelog(logsts : logtxt);
-
-            clear logtxt;
-            logsts = 'C';
-            logtxt = '-  Current / File autl			 						: ' + cur_autl + '  ' + fil_autl;
-            writelog(logsts : logtxt);
-            option = 'AUTHL';
-            data = %trim(fil_autl);
-            execute_change(option : data : objlongschema : objname : objtype : chg_count : err_count);
-        endif;
-    else;
-        err_count += 1;
-        clear logtxt;
-        logsts = 'C';
-        logtxt = 'ERR' + %editc(err_count:'X') + '. Auth_List Not found: ' + objlongschema + '  ' + objname + '  ' + objtype;
-        writelog(logsts : logtxt);
-
-        clear logtxt;
-        logsts = 'C';
-        logtxt = '-  File autl : ' + %trim(fil_autl);
-        writelog(logsts : logtxt);
-    endif;
-    exec sql close autl;
-    //
-    return;
-end-proc;
-
-dcl-proc check_owner;
-    dcl-pi *n;
-        target_libnm char(10);
-        target_filnm char(10);
-        objlongschema char(10);
-        objname char(10);
-        objtype char(7);
-        chg_count packed(5:0);
-        err_count packed(5:0);
-    end-pi;
-    dcl-s cur_owner char(10);
-    dcl-s fil_owner char(10);
-    dcl-s stmt char(1500);
-    dcl-s option char(5);
-    dcl-s data char(100);
-    //
-    clear cur_owner;
-    clear fil_owner;
-
-    exec sql values(select coalesce(owner,'') as owner from qsys2.object_privileges
-                            where sys_dname = :objlongschema
-                            and sys_oname = :objname
-                            and objtype = :objtype
-                            and user_name = '*PUBLIC'
-                            fetch first 1 row only)
-                    into :cur_owner;
-    if cur_owner = '';
-        err_count += 1;
-        clear logtxt;
-        logsts = 'C';
-        logtxt = 'ERR' + %editc(err_count:'X') + 
-                 '. Not authorized. Please re-run. (' + 
-                 %trim(objlongschema) + '  ' + %trim(objname) + '  ' + %trim(objtype) + ')';
-        writelog(logsts : logtxt);
-    endif;
-    stmt = 'select coalesce(oaown,''*NONE'') as oaown from ' + %trim(target_libnm) + '.' + %trim(target_filnm) + ' ' +
-                'where oalib = ? ' +
-                'and oaname = ? ' +
-                'and oatype = ? ' +
-                'and oausr = ''*PUBLIC'' ' +
-                'fetch first 1 row only';
-    exec sql prepare preowner from :stmt;
-    exec sql declare owner cursor for preowner;
-    exec sql open owner using :objlongschema, :objname, :objtype;
-    exec sql fetch from owner into :fil_owner;
-    // exec sql)
-    // exec sql values(select coalesce(oaown,'') as oaown from ddscinfo.objaut
-    //                         where oalib = :objlongschema
-    //                         and oaname = :objname
-    //                         and oatype = :objtype
-    //                         and oausr = '*PUBLIC'
-    //                         fetch first 1 row only)
-    //                 into :fil_owner;
-    if fil_owner <> '';
-        if %trim(cur_owner) <> %trim(fil_owner);
-            chg_count += 1;
-            clear logtxt;
-            logsts = 'C';
-            logtxt = 'CHG' + %editc(chg_count:'X') + '. Owner Diff					 					: ' +objlongschema + 
-                        '  ' + objname + '  ' + objtype;
-            writelog(logsts : logtxt);                        
-
-            clear logtxt;
-            logsts = 'C';
-            logtxt = '-  Current / File owner									: ' + cur_owner + '  ' + fil_owner;
-            writelog(logsts : logtxt);
-            option = 'OWNER';
-            data = %trim(fil_owner);
-            execute_change(option : data : objlongschema : objname : objtype : chg_count : err_count);
-        endif;
-    else;
-        err_count += 1;
-        clear logtxt;
-        logsts = 'C';
-        logtxt = 'ERR' + %editc(err_count:'X') + '. Owner Not found: ' + objlongschema + '  ' + objname + '  ' + objtype;
-        writelog(logsts : logtxt);
-
-        clear logtxt;
-        logsts = 'C';
-        logtxt = '-  File owner: ' + %trim(fil_owner);
-        writelog(logsts : logtxt);
-    endif;
-    exec sql close owner;
-    //
-    return;
-end-proc;
 
 dcl-proc writelog;
     dcl-pi *n;
@@ -781,7 +485,7 @@ dcl-proc writelog;
         exec sql values current server into :cur_sysnm;
     endif;
     if %len(%trim(logLocation)) = 0;
-        logLocation = '/home/autcmpn_' + %trim(cur_sysnm) + 
+        logLocation = '/home/autcmp_' + %trim(cur_sysnm) + 
                         '_' + %trim(%scanrpl('-' : '' : %char(cur_date))) + 
                         '_' + %trim(%scanrpl('.' : '' : %char(cur_time))) + '.log';
     endif;
