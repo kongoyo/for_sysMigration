@@ -62,7 +62,7 @@ dcl-proc read_from_file;
     dcl-s jobqname char(10);
     dcl-s jobqlname char(10);
     dcl-s datesomite char(219);
-    dcl-s description char(50);
+    dcl-s description varchar(50) ccsid(937);
     dcl-s cmd char(512);
     dcl-s usrprf_sbmjob char(10);
     dcl-s jobdname char(10);
@@ -95,7 +95,7 @@ dcl-proc read_from_file;
             'JOB_QUEUE_NAME, ' +
             'coalesce(JOB_QUEUE_LIBRARY_NAME,'''') as JOB_QUEUE_LIBRARY_NAME, ' +
             'coalesce(DATES_OMITTED,'''') as DATES_OMITTED, ' +
-            'coalesce(DESCRIPTION,'''') as DESCRIPTION, ' +
+            'coalesce(cast(description AS varchar(50) CCSID 937),'''') as description, ' +
             'COMMAND_STRING, ' +
             'USER_PROFILE_FOR_SUBMITTED_JOB, ' +
             'JOB_DESCRIPTION_NAME, ' +
@@ -192,7 +192,7 @@ dcl-proc prepare_cmd;
         jobqname char(10);
         jobqlname char(10);
         datesomit char(219);
-        description char(50);
+        description varchar(50) ccsid(937);
         cmd char(512);
         usrprf_sbmjob char(10);
         jobdname char(10);

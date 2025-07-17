@@ -210,7 +210,7 @@ dcl-proc rstlib;
         exec sql values current server into :cur_sysnm;
     endif;
     // ***** for Test only
-    cur_sysnm = 'AS081N';
+    cur_sysnm = 'KSG01N';
     // ***** for Test only
     logsts = 'C';
     logtxt = '* Current System is ' + %trim(cur_sysnm) + '.';
@@ -237,10 +237,7 @@ dcl-proc rstlib;
             option = '1';
             volumeid = '101Y25';
             omit_lib = '#LIBRARY DDSCINFO HOYA* PMEDH* RMT* Q* ' +
-                        'SYSIBM SYSIBMADM SYSPROC SYSTOOLS ' +
-                        'KCOFCMTF KCOFCMTT KCOFITN KCOFPRC KCOFUSR KCOFSCRT ' +
-                        'KSOFFINA KSOFFINF KSOFFINFVR KSOFFIXF KSUSER FU1000427 ' +
-                        'FUCOMM SMTPSPL S007389 GZIP';
+                        'SYSIBM SYSIBMADM SYSPROC SYSTOOLS SGKGISN';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
 
             option = '5';
@@ -336,12 +333,8 @@ dcl-proc rstlib;
 
             option = '1';
             volumeid = 'F03Y25';
-            omit_lib = '#LIBRARY DDSCINFO HOYA* PMEDH* RMT* Q* ' +
-                        'SYSIBM SYSIBMADM SYSPROC SYSTOOLS ' +
-                        'KCOFCMTF KCOFCMTT KCOFITN KCOFPRC ' +
-                        'KCOFUSR KCOFSCRT KSOFFINA KSOFFINF ' +
-                        'KSOFFINFVR KSOFFIXF KSUSER FU1000427 ' +
-                        'FUCOMM SMTPSPL S007389 GZIP';
+            omit_lib = '#LIBRARY DDSCINFO PMEDH* RMT* Q* ' +
+                        'SYSIBM SYSIBMADM SYSPROC SYSTOOLS SGKGISN';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
 
             option = '5';
@@ -378,7 +371,7 @@ dcl-proc rstlib;
             option = '3';
             volumeid = 'F04Y25';
             omit_lib = '#LIBRARY DDSCINFO HOYA* PMEDH* RMT* Q* ' +
-                        'SYSIBM SYSIBMADM SYSPROC SYSTOOLS ';
+                        'SYSIBM SYSIBMADM SYSPROC SYSTOOLS';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
 
             option = '5';
@@ -447,8 +440,9 @@ dcl-proc rstlib;
             // G01Y25 start
             option = '1';
             volumeid = 'G01Y25';
-            omit_lib = '#LIBRARY DDSCINFO HOYA* PMEDH* RMT* Q* ' +
-                        'SYSIBM SYSIBMADM SYSPROC SYSTOOLS ';
+            omit_lib = '#LIBRARY DDSCINFO PMEDH* RMT* Q* ' +
+                        'SYSIBM SYSIBMADM SYSPROC SYSTOOLS ' +
+                        'SGKGISN OSKGISN FUKGISN VCKGISN FEKGISN';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
 
             option = '5';
@@ -621,16 +615,17 @@ dcl-proc rstlib;
             // AP Library start (052 library from 052Y25)
             option = '2';
             volumeid = '052Y25';
-            ap_lib = 'KCOFCMTF KCOFCMTT KCOFITN KCOFPRC ' +
-                     'KCOFUSR KCOFSCRT KSOFFINA KSOFFINF ' +
-                     'KSOFFINFVR KSOFFIXF KSUSER FU1000427 ' +
-                     'FUCOMM SMTPSPL S007389 GZIP';
+            ap_lib = 'BMBK1 BMBUS0F BMDWA0F BMDWCBF BMLIBAMF BMLIBA0F BMLIBA0O ' +
+                    'BMLIBA0Q BMLIBA0S BMLIBA0T BMLIBCBF BMLIBCBO BMLIBCBQ BMLIBCBS ' +
+                    'BMTEST BMUPDATEQ BMUPDATES BMUPDCBS BSIILIBF BSIILIBO BSIILIBS ' +
+                    'GLPLUSF2AA';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
             // 081Y25 start
             option = '1';
             volumeid = '081Y25';
-            omit_lib = '#LIBRARY DDSCINFO HOYA* PMEDH* RMT* Q* ' +
-                        'SYSIBM SYSIBMADM SYSPROC SYSTOOLS ';
+            omit_lib = '#LIBRARY DDSCINFO PMEDH* RMT* Q* ' +
+                        'SYSIBM SYSIBMADM SYSPROC SYSTOOLS ' +
+                        'SGKGISN OSKGISN FUKGISN VCKGISN FEKGISN';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
 
             option = '5';

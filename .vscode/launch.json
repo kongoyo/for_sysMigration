@@ -11,12 +11,12 @@
         "name": "IBM i Debug: Debug a batch program",
         "user": "ibmecs",
         "password": "${command:AskForPassword}",
-        "host": "clark73.ddsc.com.tw",
+        "host": "clark75.ddsc.com.tw",
         "port": 8005,
-        "library": "",
+        "library": "steve",
         "program": "",
         "startBatchJobCommand": "",
-        "updateProductionFiles": false
+        "updateProductionFiles": true
     }
     ]
 }
