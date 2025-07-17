@@ -355,16 +355,20 @@ dcl-proc check_obja;
                         chg_count += 1;
                         clear logtxt;
                         logsts = 'C';
-                        logtxt = 'CHG' + %editc(chg_count:'X') + '. Obj Authority Diff (FIL_USRDEF)				: ' + objlongschema + '  ' + objname + '  ' + objtype;
+                        logtxt = 'CHG' + %editc(chg_count:'X') + 
+                                '. Obj Authority Diff (FIL_USRDEF)				: ' + objlongschema + 
+                                '  ' + objname + '  ' + objtype;
                         writelog(logsts : logtxt);
                 
                         clear logtxt;
                         logsts = 'C';
-                        logtxt = '-  Current user / obja									: ' + cur_usr + '  ' + cur_objobja;
+                        logtxt = '-  Current user / obja									: ' + cur_usr + 
+                                '  ' + cur_objobja;
                         writelog(logsts : logtxt);
                         clear logtxt;
                         logsts = 'C';
-                        logtxt = '-  File user / obja										: ' + fil_usr + '  ' + fil_objobja;
+                        logtxt = '-  File user / obja										: ' + fil_usr + 
+                                '  ' + fil_objobja;
                         writelog(logsts : logtxt);
                         
                         option = 'OBJAU';
@@ -420,17 +424,21 @@ dcl-proc check_obja;
                         data = fil_usr + fil_objobja;
                         execute_change(option : data : objlongschema : objname : objtype : chg_count : err_count);
 
-                    endif;                  
+                    endif;  
                 elseif %trim(fil_objobja) = %trim(cur_objobja) and %trim(fil_objobja) = 'USER DEFINED';
+                    // Both file and current are USER DEFINED
                     if %trim(fil_objopr) <> %trim(cur_objopr) or %trim(fil_objomgt) <> %trim(cur_objomgt) or
-                        %trim(fil_objexist) <> %trim(cur_objexist) or %trim(fil_objalter) <> %trim(cur_objalter) or
-                        %trim(fil_objref) <> %trim(cur_objref) or %trim(fil_read) <> %trim(cur_read) or
-                        %trim(fil_add) <> %trim(cur_add) or %trim(fil_upd) <> %trim(cur_upd) or
-                        %trim(fil_dlt) <> %trim(cur_dlt) or %trim(fil_exec) <> %trim(cur_exec);
+                    %trim(fil_objexist) <> %trim(cur_objexist) or %trim(fil_objalter) <> %trim(cur_objalter) or
+                    %trim(fil_objref) <> %trim(cur_objref) or %trim(fil_read) <> %trim(cur_read) or
+                    %trim(fil_add) <> %trim(cur_add) or %trim(fil_upd) <> %trim(cur_upd) or
+                    %trim(fil_dlt) <> %trim(cur_dlt) or %trim(fil_exec) <> %trim(cur_exec);
                         chg_count += 1;
                         clear logtxt;
                         logsts = 'C';
-                        logtxt = 'CHG' + %editc(chg_count:'X')
+                        logtxt = 'CHG' + %editc(chg_count:'X') + '. Obj Authority Diff (BOTH_USRDEF)			: ' + objlongschema + '  ' + objname + '  ' + objtype;
+                        writelog(logsts : logtxt);
+                    endif;
+                else;
                 endif;
             else;
                 if %trim(fil_objobja) = 'USER DEFINED';
@@ -439,12 +447,10 @@ dcl-proc check_obja;
                     logsts = 'C';
                     logtxt = 'CHG' + %editc(chg_count:'X') + '. Obj Authority Not found (FIL_USRDEF)			: ' + objlongschema + '  ' + objname + '  ' + objtype;
                     writelog(logsts : logtxt);
-
                     clear logtxt;
                     logsts = 'C';
                     logtxt = '-  File user / obja										: ' + fil_usr + '  ' + fil_objobja;
                     writelog(logsts : logtxt);
-
                     option = 'OBJNA';
                     data = fil_usr + fil_objobja;
                     execute_change(option : data : objlongschema : objname : objtype : chg_count : err_count);
@@ -454,12 +460,10 @@ dcl-proc check_obja;
                     logsts = 'C';
                     logtxt = 'CHG' + %editc(chg_count:'X') + '. Obj Authority Not found (FIL_NORMAL)			: ' + objlongschema + '  ' + objname + '  ' + objtype;
                     writelog(logsts : logtxt);
-                    
                     clear logtxt;
                     logsts = 'C';
                     logtxt = '-  File user / obja										: ' + fil_usr + '  ' + fil_objobja;
                     writelog(logsts : logtxt);
-
                     option = 'OBJNA';
                     data = fil_usr + fil_objobja;
                     execute_change(option : data : objlongschema : objname : objtype : chg_count : err_count);
@@ -473,51 +477,51 @@ dcl-proc check_obja;
     return;
 end-proc;
 
-dcl-proc check_autl;
-    dcl-pi *n;
-        target_libnm char(10);
-        target_filnm char(10);
-        objlongschema char(10);
-        objname char(10);
-        objtype char(7);
-        chg_count packed(5:0);
-        err_count packed(5:0);
-    end-pi;
-    dcl-s cur_autl char(10);
-    dcl-s fil_autl char(10);
-    dcl-s stmt char(1500);
-    dcl-s option char(5);
-    dcl-s data char(100);
+    dcl-proc check_autl;
+        dcl-pi *n;
+            target_libnm char(10);
+            target_filnm char(10);
+            objlongschema char(10);
+            objname char(10);
+            objtype char(7);
+            chg_count packed(5:0);
+            err_count packed(5:0);
+        end-pi;
+        dcl-s cur_autl char(10);
+        dcl-s fil_autl char(10);
+        dcl-s stmt char(1500);
+        dcl-s option char(5);
+        dcl-s data char(100);
     //
-    clear cur_autl;
-    clear fil_autl;
+        clear cur_autl;
+        clear fil_autl;
 
-    exec sql values(select coalesce(autl,'*NONE') as autl from qsys2.object_privileges
+        exec sql values(select coalesce(autl,'*NONE') as autl from qsys2.object_privileges
                             where sys_dname = :objlongschema
                             and sys_oname = :objname
                             and objtype = :objtype
                             and user_name = '*PUBLIC'
                             fetch first 1 row only)
                     into :cur_autl;
-    if cur_autl = '';
-        err_count += 1;
-        clear logtxt;
-        logsts = 'C';
-        logtxt = 'ERR' + %editc(err_count:'X') + 
+        if cur_autl = '';
+            err_count += 1;
+            clear logtxt;
+            logsts = 'C';
+            logtxt = 'ERR' + %editc(err_count:'X') + 
                  '. Not authorized. Please re-run. (' + 
                  %trim(objlongschema) + '  ' + %trim(objname) + '  ' + %trim(objtype) + ')';
-        writelog(logsts : logtxt);
-    endif;
-    stmt = 'select coalesce(oaanam,''*NONE'') as oaanam from ' + %trim(target_libnm) + '.' + %trim(target_filnm) + ' ' +
+            writelog(logsts : logtxt);
+        endif;
+        stmt = 'select coalesce(oaanam,''*NONE'') as oaanam from ' + %trim(target_libnm) + '.' + %trim(target_filnm) + ' ' +
                 'where oalib = ? ' +
                 'and oaname = ? ' +
                 'and oatype = ? ' +
                 'and oausr = ''*PUBLIC'' ' +
                 'fetch first 1 row only';
-    exec sql prepare preautl from :stmt;
-    exec sql declare autl cursor for preautl;
-    exec sql open autl using :objlongschema, :objname, :objtype;
-    exec sql fetch from autl into :fil_autl;
+        exec sql prepare preautl from :stmt;
+        exec sql declare autl cursor for preautl;
+        exec sql open autl using :objlongschema, :objname, :objtype;
+        exec sql fetch from autl into :fil_autl;
     // exec sql values(select coalesce(oaanam,'*NONE') as oaanam from ddscinfo.objaut
     //                         where oalib = :objlongschema
     //                         and oaname = :objname
@@ -525,85 +529,85 @@ dcl-proc check_autl;
     //                         and oausr = '*PUBLIC'
     //                         fetch first 1 row only)
     //                 into :fil_autl;
-    if fil_autl <> '';
-        if %trim(cur_autl) <> %trim(fil_autl);
+        if fil_autl <> '';
+            if %trim(cur_autl) <> %trim(fil_autl);
+                chg_count += 1;
+                clear logtxt;
+                logsts = 'C';
+                logtxt = 'CHG' + %editc(chg_count:'X') + '. Auth_List Diff				 					: ' + objlongschema + 
+                        '  ' + objname + '  ' + objtype;
+                writelog(logsts : logtxt);
+
+                clear logtxt;
+                logsts = 'C';
+                logtxt = '-  Current / File autl			 						: ' + cur_autl + '  ' + fil_autl;
+                writelog(logsts : logtxt);
+                option = 'AUTHL';
+                data = %trim(fil_autl);
+                execute_change(option : data : objlongschema : objname : objtype : chg_count : err_count);
+            endif;
+        else;
             chg_count += 1;
             clear logtxt;
             logsts = 'C';
-            logtxt = 'CHG' + %editc(chg_count:'X') + '. Auth_List Diff				 					: ' + objlongschema + 
-                        '  ' + objname + '  ' + objtype;
+            logtxt = 'ERR' + %editc(err_count:'X') + '. Auth_List Not found: ' + objlongschema + '  ' + objname + '  ' + objtype;
             writelog(logsts : logtxt);
 
             clear logtxt;
             logsts = 'C';
-            logtxt = '-  Current / File autl			 						: ' + cur_autl + '  ' + fil_autl;
+            logtxt = '-  File autl : ' + %trim(fil_autl);
             writelog(logsts : logtxt);
-            option = 'AUTHL';
-            data = %trim(fil_autl);
-            execute_change(option : data : objlongschema : objname : objtype : chg_count : err_count);
         endif;
-    else;
-        chg_count += 1;
-        clear logtxt;
-        logsts = 'C';
-        logtxt = 'ERR' + %editc(err_count:'X') + '. Auth_List Not found: ' + objlongschema + '  ' + objname + '  ' + objtype;
-        writelog(logsts : logtxt);
-
-        clear logtxt;
-        logsts = 'C';
-        logtxt = '-  File autl : ' + %trim(fil_autl);
-        writelog(logsts : logtxt);
-    endif;
-    exec sql close autl;
+        exec sql close autl;
     //
-    return;
-end-proc;
+        return;
+    end-proc;
 
-dcl-proc check_owner;
-    dcl-pi *n;
-        target_libnm char(10);
-        target_filnm char(10);
-        objlongschema char(10);
-        objname char(10);
-        objtype char(7);
-        chg_count packed(5:0);
-        err_count packed(5:0);
-    end-pi;
-    dcl-s cur_owner char(10);
-    dcl-s fil_owner char(10);
-    dcl-s stmt char(1500);
-    dcl-s option char(5);
-    dcl-s data char(100);
+    dcl-proc check_owner;
+        dcl-pi *n;
+            target_libnm char(10);
+            target_filnm char(10);
+            objlongschema char(10);
+            objname char(10);
+            objtype char(7);
+            chg_count packed(5:0);
+            err_count packed(5:0);
+        end-pi;
+        dcl-s cur_owner char(10);
+        dcl-s fil_owner char(10);
+        dcl-s stmt char(1500);
+        dcl-s option char(5);
+        dcl-s data char(100);
     //
-    clear cur_owner;
-    clear fil_owner;
+        clear cur_owner;
+        clear fil_owner;
 
-    exec sql values(select coalesce(owner,'') as owner from qsys2.object_privileges
+        exec sql values(select coalesce(owner,'') as owner from qsys2.object_privileges
                             where sys_dname = :objlongschema
                             and sys_oname = :objname
                             and objtype = :objtype
                             and user_name = '*PUBLIC'
                             fetch first 1 row only)
                     into :cur_owner;
-    if cur_owner = '';
-        err_count += 1;
-        clear logtxt;
-        logsts = 'C';
-        logtxt = 'ERR' + %editc(err_count:'X') + 
+        if cur_owner = '';
+            err_count += 1;
+            clear logtxt;
+            logsts = 'C';
+            logtxt = 'ERR' + %editc(err_count:'X') + 
                  '. Not authorized. Please re-run. (' + 
                  %trim(objlongschema) + '  ' + %trim(objname) + '  ' + %trim(objtype) + ')';
-        writelog(logsts : logtxt);
-    endif;
-    stmt = 'select coalesce(oaown,''*NONE'') as oaown from ' + %trim(target_libnm) + '.' + %trim(target_filnm) + ' ' +
+            writelog(logsts : logtxt);
+        endif;
+        stmt = 'select coalesce(oaown,''*NONE'') as oaown from ' + %trim(target_libnm) + '.' + %trim(target_filnm) + ' ' +
                 'where oalib = ? ' +
                 'and oaname = ? ' +
                 'and oatype = ? ' +
                 'and oausr = ''*PUBLIC'' ' +
                 'fetch first 1 row only';
-    exec sql prepare preowner from :stmt;
-    exec sql declare owner cursor for preowner;
-    exec sql open owner using :objlongschema, :objname, :objtype;
-    exec sql fetch from owner into :fil_owner;
+        exec sql prepare preowner from :stmt;
+        exec sql declare owner cursor for preowner;
+        exec sql open owner using :objlongschema, :objname, :objtype;
+        exec sql fetch from owner into :fil_owner;
     // exec sql)
     // exec sql values(select coalesce(oaown,'') as oaown from ddscinfo.objaut
     //                         where oalib = :objlongschema
@@ -612,99 +616,99 @@ dcl-proc check_owner;
     //                         and oausr = '*PUBLIC'
     //                         fetch first 1 row only)
     //                 into :fil_owner;
-    if fil_owner <> '';
-        if %trim(cur_owner) <> %trim(fil_owner);
+        if fil_owner <> '';
+            if %trim(cur_owner) <> %trim(fil_owner);
+                chg_count += 1;
+                clear logtxt;
+                logsts = 'C';
+                logtxt = 'CHG' + %editc(chg_count:'X') + '. Owner Diff					 					: ' +objlongschema + 
+                        '  ' + objname + '  ' + objtype;
+                writelog(logsts : logtxt);                        
+
+                clear logtxt;
+                logsts = 'C';
+                logtxt = '-  Current / File owner									: ' + cur_owner + '  ' + fil_owner;
+                writelog(logsts : logtxt);
+                option = 'OWNER';
+                data = %trim(fil_owner);
+                execute_change(option : data : objlongschema : objname : objtype : chg_count : err_count);
+            endif;
+        else;
             chg_count += 1;
             clear logtxt;
             logsts = 'C';
-            logtxt = 'CHG' + %editc(chg_count:'X') + '. Owner Diff					 					: ' +objlongschema + 
-                        '  ' + objname + '  ' + objtype;
-            writelog(logsts : logtxt);                        
+            logtxt = 'ERR' + %editc(err_count:'X') + '. Owner Not found: ' + objlongschema + '  ' + objname + '  ' + objtype;
+            writelog(logsts : logtxt);
 
             clear logtxt;
             logsts = 'C';
-            logtxt = '-  Current / File owner									: ' + cur_owner + '  ' + fil_owner;
+            logtxt = '-  File owner: ' + %trim(fil_owner);
             writelog(logsts : logtxt);
-            option = 'OWNER';
-            data = %trim(fil_owner);
-            execute_change(option : data : objlongschema : objname : objtype : chg_count : err_count);
         endif;
-    else;
-        chg_count += 1;
-        clear logtxt;
-        logsts = 'C';
-        logtxt = 'ERR' + %editc(err_count:'X') + '. Owner Not found: ' + objlongschema + '  ' + objname + '  ' + objtype;
-        writelog(logsts : logtxt);
-
-        clear logtxt;
-        logsts = 'C';
-        logtxt = '-  File owner: ' + %trim(fil_owner);
-        writelog(logsts : logtxt);
-    endif;
-    exec sql close owner;
+        exec sql close owner;
     //
-    return;
-end-proc;
+        return;
+    end-proc;
 
-dcl-proc writelog;
-    dcl-pi *n;
-        logsts char(1); // T: Log Title  C: Log Continue  E: Log Ending
-        logtxt char(1500);
-    end-pi;
-    dcl-s cur_date date;
-    dcl-s cur_time time;
-    dcl-s cur_sysnm char(8) static;
-    dcl-s logLocation char(200) static;
+    dcl-proc writelog;
+        dcl-pi *n;
+            logsts char(1); // T: Log Title  C: Log Continue  E: Log Ending
+            logtxt char(1500);
+        end-pi;
+        dcl-s cur_date date;
+        dcl-s cur_time time;
+        dcl-s cur_sysnm char(8) static;
+        dcl-s logLocation char(200) static;
     //
-    exec sql values(current_date) into :cur_date;
-    exec sql values(current_time) into :cur_time;
-    if %len(%trim(cur_sysnm)) = 0;
-        exec sql values current server into :cur_sysnm;
-    endif;
-    if %len(%trim(logLocation)) = 0;
-        logLocation = '/home/sqltest' +
+        exec sql values(current_date) into :cur_date;
+        exec sql values(current_time) into :cur_time;
+        if %len(%trim(cur_sysnm)) = 0;
+            exec sql values current server into :cur_sysnm;
+        endif;
+        if %len(%trim(logLocation)) = 0;
+            logLocation = '/home/sqltest' +
                         '_' + %trim(%scanrpl('-' : '' : %char(cur_date))) + 
                         '_' + %trim(%scanrpl('.' : '' : %char(cur_time))) + '.log';
-    endif;
-    select;
-        when logsts = 'T';
-            exec sql call QSYS2.IFS_WRITE_UTF8(trim(:logLocation),
+        endif;
+        select;
+            when logsts = 'T';
+                exec sql call QSYS2.IFS_WRITE_UTF8(trim(:logLocation),
                             '',
                             OVERWRITE => 'REPLACE',
                             END_OF_LINE => 'NONE');
-            if %len(%trim(logtxt)) = 0;
-                logtxt = '--- Process start ---';
-            endif;
-            exec sql call QSYS2.IFS_WRITE_UTF8(trim(:logLocation), 
+                if %len(%trim(logtxt)) = 0;
+                    logtxt = '--- Process start ---';
+                endif;
+                exec sql call QSYS2.IFS_WRITE_UTF8(trim(:logLocation), 
                             ' ' || trim(char(:cur_date)) ||
                             ' ' || trim(char(:cur_time)) ||
                             ' ' || trim(:cur_sysnm) ||
                             ' ' || trim(:logtxt), 
                             END_OF_LINE => 'CRLF');
-        when logsts = 'C';
-            if %len(%trim(logtxt)) = 0;
-                logtxt = '--- Process continue ---';
-            endif;
-            exec sql call QSYS2.IFS_WRITE_UTF8(trim(:logLocation), 
-                            ' ' || trim(char(:cur_date)) ||
-                            ' ' || trim(char(:cur_time)) ||
-                            ' ' || trim(:cur_sysnm) ||
-                            ' ' || trim(:logtxt), 
-                            OVERWRITE => 'APPEND',
-                            END_OF_LINE => 'CRLF');
-        when logsts = 'E';
-            if %len(%trim(logtxt)) = 0;
-                logtxt = '--- Process finished ---';
-            endif;
-            exec sql call QSYS2.IFS_WRITE_UTF8(trim(:logLocation), 
+            when logsts = 'C';
+                if %len(%trim(logtxt)) = 0;
+                    logtxt = '--- Process continue ---';
+                endif;
+                exec sql call QSYS2.IFS_WRITE_UTF8(trim(:logLocation), 
                             ' ' || trim(char(:cur_date)) ||
                             ' ' || trim(char(:cur_time)) ||
                             ' ' || trim(:cur_sysnm) ||
                             ' ' || trim(:logtxt), 
                             OVERWRITE => 'APPEND',
                             END_OF_LINE => 'CRLF');
-        other;
-            snd-msg 'Write Log failed.';
-    endsl;
-    return;
-end-proc;
+            when logsts = 'E';
+                if %len(%trim(logtxt)) = 0;
+                    logtxt = '--- Process finished ---';
+                endif;
+                exec sql call QSYS2.IFS_WRITE_UTF8(trim(:logLocation), 
+                            ' ' || trim(char(:cur_date)) ||
+                            ' ' || trim(char(:cur_time)) ||
+                            ' ' || trim(:cur_sysnm) ||
+                            ' ' || trim(:logtxt), 
+                            OVERWRITE => 'APPEND',
+                            END_OF_LINE => 'CRLF');
+            other;
+                snd-msg 'Write Log failed.';
+        endsl;
+        return;
+    end-proc;
