@@ -36,23 +36,6 @@ dcl-s logtxt char(200);
 
 tapdev = %upper(%trim(tapdev));
 
-exec sql values(current_date) into :cur_date;
-exec sql values(current_time) into :cur_time;
-ifsfnm = '/home/qsecofr/kgi_log/rstexsusr_' + %trim(%scanrpl('-' : '' : %char(cur_date))) + 
-         '_' + %trim(%scanrpl('.' : '' : %char(cur_time))) + '.log';
-exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
-                                  '',
-                                  OVERWRITE => 'REPLACE',
-                                  END_OF_LINE => 'NONE'); 
-logtxt = ' ' + %trim(%char(cur_date)) + 
-         ' ' + %trim(%char(cur_time)) + 
-         ' ' + %trim(cur_sysnm) + 
-         ' ' + 'Restore exist user profile start.';
-exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
-                                  trim(:logtxt),
-                                  OVERWRITE => 'APPEND',
-                                  END_OF_LINE => 'CRLF');
-
 // Declare cursor for table qsys2.users()
 clear stmt;
 stmt = 'select odobnm from table(qsys2.users())';

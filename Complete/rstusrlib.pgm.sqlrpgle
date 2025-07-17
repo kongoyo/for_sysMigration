@@ -40,13 +40,13 @@ logsts = 'C';
 logtxt = 'Restore User libraries end';
 writelog(logsts : logtxt);
 
-logsts = 'C';
-logtxt = 'Restore User profiles start';
-writelog(logsts : logtxt);
-rstusr(tapdev);
-logsts = 'C';
-logtxt = 'Restore User profiles end';
-writelog(logsts : logtxt);
+// logsts = 'C';
+// logtxt = 'Restore User profiles start';
+// writelog(logsts : logtxt);
+// rstusr(tapdev);
+// logsts = 'C';
+// logtxt = 'Restore User profiles end';
+// writelog(logsts : logtxt);
 
 clear logtxt;
 logsts = 'E';
@@ -225,8 +225,8 @@ dcl-proc rstlib;
             // Volumeid 101Y25 start
             option = '2';
             volumeid = '101Y25';
-            ap_lib = 'SGKGIF SGKGIF029 SGKGIF000 SGKGIH SGKGIS SGKGIS029 SGKGIO ' + 
-                     'SGKGIO029 WRKGIF SGRQS CCI';
+            ap_lib = 'CCI SGKGIF SGKGIF029 SGKGIF000 SGKGIH SGKGIS SGKGIS029 SGKGIO ' + 
+                     'SGKGIO029 WRKGIF SGRQS';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
 
             option = '5';

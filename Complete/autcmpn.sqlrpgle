@@ -57,7 +57,10 @@ dow sqlcod = 0;
     if sqlcod = 0;
         if %scan('Q' : %trim(liblst.objlongschema)) <> 1 and
             %scan('#LIBRARY' : %trim(liblst.objlongschema)) <> 1 and
-            %scan('MAPEPIRE_T' : %trim(liblst.objlongschema)) <> 1 and            
+            %scan('MAPEPIRE_T' : %trim(liblst.objlongschema)) <> 1 and
+            %scan('HOYA' : %trim(liblst.objlongschema)) <> 1 and
+            %scan('PMEDH' : %trim(liblst.objlongschema)) <> 1 and
+            %scan('RMT' : %trim(liblst.objlongschema)) <> 1 and
             %scan('STAGE' : %trim(liblst.objlongschema)) <> 1 and
             %scan('SYSIBM' : %trim(liblst.objlongschema)) <> 1 and
             %scan('SYSIBMADM' : %trim(liblst.objlongschema)) <> 1 and
