@@ -210,7 +210,7 @@ dcl-proc rstlib;
         exec sql values current server into :cur_sysnm;
     endif;
     // ***** for Test only
-    // cur_sysnm = 'KSG01N';
+    cur_sysnm = 'AS081N';
     // ***** for Test only
     logsts = 'C';
     logtxt = '* Current System is ' + %trim(cur_sysnm) + '.';
@@ -262,7 +262,7 @@ dcl-proc rstlib;
             option = '2';
             volumeid = 'F02Y25';
             ap_lib = 'KCOFCMTF KCOFCMTT KCOFITN KCOFPRC KCOFUSR KCOFSCRT ' +
-                     'KSOFFINA KSOFFINF KSOFFINFVR KSOFFIXF KSUSER FU1000427 ' +
+                     'KSOFFINF KSOFFIXF KSOFFINA KSOFFINFVR KSUSER FU1000427 ' +
                      'FUCOMM SMTPSPL S007389 GZIP';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
             option = '4';
@@ -344,7 +344,8 @@ dcl-proc rstlib;
             option = '2';
             volumeid = 'F04Y25';
             ap_lib = 'KCOFCMTF KCOFCMTT KCOFITN KCOFPRC ' +
-                     'KCOFUSR KCOFSCRT KSOFFINA KSOFFINF ' +
+                     'KCOFUSR KCOFSCRT ' +
+                     'KSOFFINF KSOFFINA ' +
                      'KSOFFINFVR KSOFFIXF KSUSER FU1000427 ' +
                      'FUCOMM SMTPSPL S007389 GZIP';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
@@ -395,10 +396,11 @@ dcl-proc rstlib;
             // AP Library start (800 library from 800Y25)
             option = '2';
             volumeid = '800Y25';
-            ap_lib = 'KSOFFINA KSOFFINF KSOFFINFVR KSUSER FU1000427 KSOFFIXF ' +
-                    'KSOFFINF1 KSOFFINFV1 KSUSER1 KSOSU KSOFFIXF1 ' +
-                    'KSOFFINF2 KSOFFINFV2 KSUSER2 KSOFFIXF2' +
-                    'KSOFFINF3 KSOFFINFV3 KSUSER3 KSOFFIXF3';
+            ap_lib = 'KSOFFINA KSOFFINF KSOFFINF1 KSOFFINF2 KSOFFINF3 ' +
+                    'KSOFFIXF KSOFFIXF1 KSOFFIXF2 KSOFFIXF3 ' +
+                    'FU1000427 KSOSU ' +
+                    'KSUSER KSUSER1 KSUSER2 KSUSER3 ' +
+                    'KSOFFINFVR KSOFFINFV1 KSOFFINFV2 KSOFFINFV3 ';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
 
             option = '4';
@@ -561,10 +563,11 @@ dcl-proc rstlib;
             // AP Library start (800 library from 500Y25)
             option = '2';
             volumeid = '500Y25';
-            ap_lib = 'KCOFCMTF KCOFCMTT KCOFITN KCOFPRC ' +
-                     'KCOFUSR KCOFSCRT KSOFFINA KSOFFINF ' +
-                     'KSOFFINFVR KSOFFIXF KSUSER FU1000427 ' +
-                     'FUCOMM SMTPSPL S007389 GZIP';
+            ap_lib = 'KSOFFINA KSOFFINF KSOFFINF1 KSOFFINF2 KSOFFINF3 ' +
+                    'KSOFFIXF KSOFFIXF1 KSOFFIXF2 KSOFFIXF3 ' +
+                    'FU1000427 KSOSU ' +
+                    'KSUSER KSUSER1 KSUSER2 KSUSER3 ' +
+                    'KSOFFINFVR KSOFFINFV1 KSOFFINFV2 KSOFFINFV3 ';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
             option = '4';
             volumeid = '500Y25';
