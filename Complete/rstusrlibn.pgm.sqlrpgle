@@ -210,7 +210,7 @@ dcl-proc rstlib;
         exec sql values current server into :cur_sysnm;
     endif;
     // ***** for Test only
-    cur_sysnm = 'KSG01N';
+    // cur_sysnm = 'KSG01N';
     // ***** for Test only
     logsts = 'C';
     logtxt = '* Current System is ' + %trim(cur_sysnm) + '.';
@@ -223,96 +223,84 @@ dcl-proc rstlib;
             clear ap_lib;
             clear omit_lib;
             // Volumeid 101Y25 start
+            // option = '2';
+            // volumeid = '101Y25';
+            // ap_lib = 'CCI SGKGIF SGKGIF029 SGKGIF000 SGKGIH SGKGIS SGKGIS029 SGKGIO ' + 
+            //          'SGKGIO029 WRKGIF SGRQS';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            // option = '5';
+            // cur_sysnm = 'AS101N';
+            // objnm = 'CCI';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            // option = '1';
+            // volumeid = '101Y25';
+            // omit_lib = '#LIBRARY DDSCINFO HOYA* PMEDH* RMT* Q* ' +
+            //             'SYSIBM SYSIBMADM SYSPROC SYSTOOLS SGKGISN';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            // option = '5';
+            // cur_sysnm = 'AS101N';
+            // objnm = '$INFRA';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            // option = '5';
+            // cur_sysnm = 'AS101N';
+            // objnm = 'MONLIB';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            // option = '5';
+            // cur_sysnm = 'AS101N';            
+            // objnm = 'OCEANTOOLS';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            // option = '5';
+            // cur_sysnm = 'AS101N';            
+            // objnm = 'SMSLIB';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            // Volumeid 101Y25 end
+
+            Volumeid F02Y25 initial variable
+            clear ap_lib;
+            clear omit_lib;
+            Volumeid F02Y25 start
             option = '2';
-            volumeid = '101Y25';
-            ap_lib = 'CCI SGKGIF SGKGIF029 SGKGIF000 SGKGIH SGKGIS SGKGIS029 SGKGIO ' + 
-                     'SGKGIO029 WRKGIF SGRQS';
+            volumeid = 'F02Y25';
+            ap_lib = 'KCOFCMTF KCOFCMTT KCOFITN KCOFPRC KCOFUSR KCOFSCRT ' +
+                     'KSOFFINA KSOFFINF KSOFFINFVR KSOFFIXF KSUSER FU1000427 ' +
+                     'FUCOMM SMTPSPL S007389 GZIP';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
+            option = '4';
+            volumeid = 'F02Y25';
+            objnm = 'PTM0000P PTM0000D';
+            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            option = '3';
+            volumeid = 'F02Y25';
+            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
             option = '5';
-            cur_sysnm = 'AS101N';
-            objnm = 'CCI';
-            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
-            option = '1';
-            volumeid = '101Y25';
-            omit_lib = '#LIBRARY DDSCINFO HOYA* PMEDH* RMT* Q* ' +
-                        'SYSIBM SYSIBMADM SYSPROC SYSTOOLS SGKGISN';
-            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
-            option = '5';
-            cur_sysnm = 'AS101N';
+            cur_sysnm = 'KSF02N';
             objnm = '$INFRA';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
             option = '5';
-            cur_sysnm = 'AS101N';
+            cur_sysnm = 'KSF02N';
+            objnm = 'CCI';
+            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            option = '5';
+            cur_sysnm = 'KSF02N';
             objnm = 'MONLIB';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
             option = '5';
-            cur_sysnm = 'AS101N';            
+            cur_sysnm = 'KSF02N';
             objnm = 'OCEANTOOLS';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
             option = '5';
-            cur_sysnm = 'AS101N';            
+            cur_sysnm = 'KSF02N';
             objnm = 'SMSLIB';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-            // Volumeid 101Y25 end
-
-            // Volumeid F02Y25 initial variable
-            // clear ap_lib;
-            // clear omit_lib;
-            // Volumeid F02Y25 start
-            // option = '2';
-            // volumeid = 'F02Y25';
-            // ap_lib = 'KCOFCMTF KCOFCMTT KCOFITN KCOFPRC KCOFUSR KCOFSCRT ' +
-            //          'KSOFFINA KSOFFINF KSOFFINFVR KSOFFIXF KSUSER FU1000427 ' +
-            //          'FUCOMM SMTPSPL S007389 GZIP';
-            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
-            // option = '4';
-            // volumeid = 'F02Y25';
-            // objnm = 'PTM0000P PTM0000D';
-            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
-            // option = '3';
-            // volumeid = 'F02Y25';
-            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
-            // option = '5';
-            // cur_sysnm = 'KSF02N';
-            // objnm = '$INFRA';
-            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
-            // option = '5';
-            // cur_sysnm = 'KSF02N';
-            // objnm = 'CCI';
-            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
-            // option = '5';
-            // cur_sysnm = 'KSF02N';
-            // objnm = 'MONLIB';
-            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
-            // option = '5';
-            // cur_sysnm = 'KSF02N';
-            // objnm = 'OCEANTOOLS';
-            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
-            // option = '5';
-            // cur_sysnm = 'KSF02N';
-            // objnm = 'SMSLIB';
-            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
-            // option = '5';
-            // cur_sysnm = 'KSF02N';
-            // objnm = 'DDSC';
-            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
-            // option = '5';
-            // cur_sysnm = 'KSF02N';
-            // objnm = 'DDSCINFO';
-            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-            // Volumeid F02Y25 end
+            option = '5';
+            cur_sysnm = 'KSF02N';
+            objnm = 'DDSC';
+            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            option = '5';
+            cur_sysnm = 'KSF02N';
+            objnm = 'DDSCINFO';
+            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            Volumeid F02Y25 end
 
         // volume: F03Y25 & F04Y25
         when %trim(cur_sysnm) = 'KSF03N';
@@ -320,39 +308,36 @@ dcl-proc rstlib;
             clear ap_lib;
             clear omit_lib;
             // Volumeid F03Y25 start
-            option = '2';
-            volumeid = 'F03Y25';
-            ap_lib = 'SGKGIF SGKGIF029 SGKGIF000 SGKGIH SGKGIS SGKGIS029 SGKGIO ' + 
-                     'SGKGIO029 WRKGIF SGRQS CCI';
-            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
-            option = '5';
-            cur_sysnm = 'KSF03N';
-            objnm = 'CCI';
-            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
-            option = '1';
-            volumeid = 'F03Y25';
-            omit_lib = '#LIBRARY DDSCINFO PMEDH* RMT* Q* ' +
-                        'SYSIBM SYSIBMADM SYSPROC SYSTOOLS SGKGISN';
-            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
-            option = '5';
-            cur_sysnm = 'KSF03N';
-            objnm = '$INFRA';
-            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-            option = '5';
-            cur_sysnm = 'KSF03N';
-            objnm = 'MONLIB';
-            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-            option = '5';
-            cur_sysnm = 'KSF03N';            
-            objnm = 'OCEANTOOLS';
-            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-            option = '5';
-            cur_sysnm = 'KSF03N';            
-            objnm = 'SMSLIB';
-            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            // option = '2';
+            // volumeid = 'F03Y25';
+            // ap_lib = 'SGKGIF SGKGIF029 SGKGIF000 SGKGIH SGKGIS SGKGIS029 SGKGIO ' + 
+            //          'SGKGIO029 WRKGIF SGRQS CCI';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            // option = '5';
+            // cur_sysnm = 'KSF03N';
+            // objnm = 'CCI';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            // option = '1';
+            // volumeid = 'F03Y25';
+            // omit_lib = '#LIBRARY DDSCINFO PMEDH* RMT* Q* ' +
+            //             'SYSIBM SYSIBMADM SYSPROC SYSTOOLS SGKGISN';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            // option = '5';
+            // cur_sysnm = 'KSF03N';
+            // objnm = '$INFRA';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            // option = '5';
+            // cur_sysnm = 'KSF03N';
+            // objnm = 'MONLIB';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            // option = '5';
+            // cur_sysnm = 'KSF03N';            
+            // objnm = 'OCEANTOOLS';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            // option = '5';
+            // cur_sysnm = 'KSF03N';            
+            // objnm = 'SMSLIB';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
             // Volumeid F03Y25 end
             // Volumeid F04Y25 start
             option = '2';
@@ -429,7 +414,7 @@ dcl-proc rstlib;
                      'VCKGIS029 VCKGIO VCKGIO029 VCRQS VCRQS029 FEKGIF ' +
                      'FEKGIF029 FEKGIF000 FEKGIS FEKGIS029 FEKGIO FEKGIO029 FERQS';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-            // AP Library start (052 library from 052Y25)
+            AP Library start (052 library from 052Y25)
             option = '2';
             volumeid = '052Y25';
             ap_lib = 'BMBK1 BMBUS0F BMDWA0F BMDWCBF BMLIBAMF BMLIBA0F BMLIBA0O ' +
@@ -437,151 +422,132 @@ dcl-proc rstlib;
                     'BMTEST BMUPDATEQ BMUPDATES BMUPDCBS BSIILIBF BSIILIBO BSIILIBS ' +
                     'GLPLUSF2AA';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-            // G01Y25 start
-            option = '1';
-            volumeid = 'G01Y25';
-            omit_lib = '#LIBRARY DDSCINFO PMEDH* RMT* Q* ' +
-                        'SYSIBM SYSIBMADM SYSPROC SYSTOOLS ' +
-                        'SGKGISN OSKGISN FUKGISN VCKGISN FEKGISN';
-            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
-            option = '5';
-            cur_sysnm = 'KSG01N';
-            objnm = '$INFRA';
-            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
-            option = '5';
-            cur_sysnm = 'KSG01N';
-            objnm = 'CCI';
-            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
-            option = '5';
-            cur_sysnm = 'KSG01N';
-            objnm = 'MONLIB';
-            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
-            option = '5';
-            cur_sysnm = 'KSG01N';
-            objnm = 'OCEANTOOLS';
-            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
-            option = '5';
-            cur_sysnm = 'KSG01N';
-            objnm = 'SMSLIB';
-            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
-            option = '5';
-            cur_sysnm = 'KSG01N';
-            objnm = 'DDSCINFO';
-            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            
+            // // G01Y25 start
+            // option = '1';
+            // volumeid = 'G01Y25';
+            // omit_lib = '#LIBRARY DDSCINFO PMEDH* RMT* Q* ' +
+            //             'SYSIBM SYSIBMADM SYSPROC SYSTOOLS ' +
+            //             'SGKGISN OSKGISN FUKGISN VCKGISN FEKGISN';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            // option = '5';
+            // cur_sysnm = 'KSG01N';
+            // objnm = '$INFRA';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            // option = '5';
+            // cur_sysnm = 'KSG01N';
+            // objnm = 'CCI';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            // option = '5';
+            // cur_sysnm = 'KSG01N';
+            // objnm = 'MONLIB';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            // option = '5';
+            // cur_sysnm = 'KSG01N';
+            // objnm = 'OCEANTOOLS';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            // option = '5';
+            // cur_sysnm = 'KSG01N';
+            // objnm = 'SMSLIB';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            // option = '5';
+            // cur_sysnm = 'KSG01N';
+            // objnm = 'DDSCINFO';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            
             // 800Y25 start
             option = '3';
             volumeid = '800Y25';
             omit_lib = '#LIBRARY DDSCINFO HOYA* PMEDH* RMT* Q* ' +
                         'SYSIBM SYSIBMADM SYSPROC SYSTOOLS';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'DF800N';
             objnm = '$INFRA';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'DF800N';
             objnm = 'CCI';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'DF800N';
             objnm = 'MONLIB';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'DF800N';
             objnm = 'OCEANTOOLS';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'DF800N';
             objnm = 'SMSLIB';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'DF800N';
             objnm = 'DDSCINFO';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            
             // 500Y25 start
             option = '3';
             volumeid = '500Y25';
             omit_lib = '#LIBRARY DDSCINFO HOYA* PMEDH* RMT* Q* ' +
                         'SYSIBM SYSIBMADM SYSPROC SYSTOOLS';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'DF500N';
             objnm = '$INFRA';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'DF500N';
             objnm = 'CCI';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'DF500N';
             objnm = 'MONLIB';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'DF500N';
             objnm = 'OCEANTOOLS';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'DF500N';
             objnm = 'SMSLIB';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'DF500N';
             objnm = 'DDSCINFO';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            
             // 052Y25 start
             option = '3';
             volumeid = '052Y25';
             omit_lib = '#LIBRARY DDSCINFO HOYA* PMEDH* RMT* Q* ' +
                         'SYSIBM SYSIBMADM SYSPROC SYSTOOLS';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'AS052N';
             objnm = '$INFRA';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'AS052N';
             objnm = 'CCI';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'AS052N';
             objnm = 'MONLIB';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'AS052N';
             objnm = 'OCEANTOOLS';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'AS052N';
             objnm = 'SMSLIB';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'AS052N';
             objnm = 'DDSCINFO';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+        
         // volume: G01Y25 & 500Y25 & 800Y25 & 052Y25
         when %trim(cur_sysnm) = 'AS081N';
             // initial variable
@@ -595,7 +561,6 @@ dcl-proc rstlib;
                      'KSOFFINFVR KSOFFIXF KSUSER FU1000427 ' +
                      'FUCOMM SMTPSPL S007389 GZIP';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '4';
             volumeid = '500Y25';
             objnm = 'PTM0000P PTM0000D';
@@ -621,150 +586,130 @@ dcl-proc rstlib;
                     'GLPLUSF2AA';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
             // 081Y25 start
-            option = '1';
-            volumeid = '081Y25';
-            omit_lib = '#LIBRARY DDSCINFO PMEDH* RMT* Q* ' +
-                        'SYSIBM SYSIBMADM SYSPROC SYSTOOLS ' +
-                        'SGKGISN OSKGISN FUKGISN VCKGISN FEKGISN';
-            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
-            option = '5';
-            cur_sysnm = 'AS081N';
-            objnm = '$INFRA';
-            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
-            option = '5';
-            cur_sysnm = 'AS081N';
-            objnm = 'CCI';
-            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
-            option = '5';
-            cur_sysnm = 'AS081N';
-            objnm = 'MONLIB';
-            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
-            option = '5';
-            cur_sysnm = 'AS081N';
-            objnm = 'OCEANTOOLS';
-            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
-            option = '5';
-            cur_sysnm = 'AS081N';
-            objnm = 'SMSLIB';
-            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
-            option = '5';
-            cur_sysnm = 'AS081N';
-            objnm = 'DDSCINFO';
-            rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            // option = '1';
+            // volumeid = '081Y25';
+            // omit_lib = '#LIBRARY DDSCINFO PMEDH* RMT* Q* ' +
+            //             'SYSIBM SYSIBMADM SYSPROC SYSTOOLS ' +
+            //             'SGKGISN OSKGISN FUKGISN VCKGISN FEKGISN';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            // option = '5';
+            // cur_sysnm = 'AS081N';
+            // objnm = '$INFRA';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            // option = '5';
+            // cur_sysnm = 'AS081N';
+            // objnm = 'CCI';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            // option = '5';
+            // cur_sysnm = 'AS081N';
+            // objnm = 'MONLIB';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            // option = '5';
+            // cur_sysnm = 'AS081N';
+            // objnm = 'OCEANTOOLS';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            // option = '5';
+            // cur_sysnm = 'AS081N';
+            // objnm = 'SMSLIB';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            // option = '5';
+            // cur_sysnm = 'AS081N';
+            // objnm = 'DDSCINFO';
+            // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            
             // 500Y25 start
             option = '3';
             volumeid = '500Y25';
             omit_lib = '#LIBRARY DDSCINFO HOYA* PMEDH* RMT* Q* ' +
                         'SYSIBM SYSIBMADM SYSPROC SYSTOOLS ';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'DF500N';
             objnm = '$INFRA';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'DF500N';
             objnm = 'CCI';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'DF500N';
             objnm = 'MONLIB';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'DF500N';
             objnm = 'OCEANTOOLS';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'DF500N';
             objnm = 'SMSLIB';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'DF500N';
             objnm = 'DDSCINFO';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            
             // 800Y25 start
             option = '3';
             volumeid = '800Y25';
             omit_lib = '#LIBRARY DDSCINFO HOYA* PMEDH* RMT* Q* ' +
                         'SYSIBM SYSIBMADM SYSPROC SYSTOOLS ';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'DF800N';
             objnm = '$INFRA';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'DF800N';
             objnm = 'CCI';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'DF800N';
             objnm = 'MONLIB';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'DF800N';
             objnm = 'OCEANTOOLS';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'DF800N';
             objnm = 'SMSLIB';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'DF800N';
             objnm = 'DDSCINFO';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            
             // 052Y25 start
             option = '3';
             volumeid = '052Y25';
             omit_lib = '#LIBRARY DDSCINFO HOYA* PMEDH* RMT* Q* ' +
                         'SYSIBM SYSIBMADM SYSPROC SYSTOOLS ';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'AS052N';
             objnm = '$INFRA';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'AS052N';
             objnm = 'CCI';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'AS052N';
             objnm = 'MONLIB';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'AS052N';
             objnm = 'OCEANTOOLS';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'AS052N';
             objnm = 'SMSLIB';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-
             option = '5';
             cur_sysnm = 'AS052N';
             objnm = 'DDSCINFO';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+        
         other;
             logsts = 'C';
             logtxt = '*** System is not in the scheduled list ***';
