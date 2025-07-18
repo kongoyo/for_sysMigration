@@ -255,10 +255,10 @@ dcl-proc rstlib;
             // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
             // Volumeid 101Y25 end
 
-            Volumeid F02Y25 initial variable
+            // Volumeid F02Y25 initial variable
             clear ap_lib;
             clear omit_lib;
-            Volumeid F02Y25 start
+            // Volumeid F02Y25 start
             option = '2';
             volumeid = 'F02Y25';
             ap_lib = 'KCOFCMTF KCOFCMTT KCOFITN KCOFPRC KCOFUSR KCOFSCRT ' +
@@ -300,7 +300,7 @@ dcl-proc rstlib;
             cur_sysnm = 'KSF02N';
             objnm = 'DDSCINFO';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-            Volumeid F02Y25 end
+            // Volumeid F02Y25 end
 
         // volume: F03Y25 & F04Y25
         when %trim(cur_sysnm) = 'KSF03N';
@@ -339,6 +339,7 @@ dcl-proc rstlib;
             // objnm = 'SMSLIB';
             // rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
             // Volumeid F03Y25 end
+
             // Volumeid F04Y25 start
             option = '2';
             volumeid = 'F04Y25';
@@ -384,11 +385,13 @@ dcl-proc rstlib;
             objnm = 'SMSLIB';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
             // Volumeid F04Y25 end
+        
         // volume: G01Y25 & 800Y25 & 500Y25 & 052Y25
         when %trim(cur_sysnm) = 'KSG01N';
             // initial variable
             clear ap_lib;
             clear omit_lib;
+            
             // AP Library start (800 library from 800Y25)
             option = '2';
             volumeid = '800Y25';
@@ -402,6 +405,7 @@ dcl-proc rstlib;
             volumeid = '800Y25';
             objnm = 'PTM0000P PTM0000D';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
+            
             // AP Library start (500 library from 500Y25)
             option = '2';
             volumeid = '500Y25';
@@ -414,7 +418,8 @@ dcl-proc rstlib;
                      'VCKGIS029 VCKGIO VCKGIO029 VCRQS VCRQS029 FEKGIF ' +
                      'FEKGIF029 FEKGIF000 FEKGIS FEKGIS029 FEKGIO FEKGIO029 FERQS';
             rstaction(option : cur_sysnm : tapdev : volumeid : ap_lib : omit_lib : objnm);
-            AP Library start (052 library from 052Y25)
+            
+            // AP Library start (052 library from 052Y25)
             option = '2';
             volumeid = '052Y25';
             ap_lib = 'BMBK1 BMBUS0F BMDWA0F BMDWCBF BMLIBAMF BMLIBA0F BMLIBA0O ' +
