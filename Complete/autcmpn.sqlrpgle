@@ -46,7 +46,12 @@ dcl-ds objaut qualified;
     oadlt char(3);
     oaexec char(3);
 end-ds;
-
+dcl-ds objstat qualified;
+    objlongschema char(10);
+    objname char(10);
+    objtype char(7);
+    save_volume char(71);
+end-ds;
 dcl-s stmt char(1500);
 dcl-s tot_count packed(5:0);
 dcl-s logsts char(1); // T: Log Title  C: Log Continue  E: Log Ending
@@ -57,7 +62,25 @@ dcl-s cmdstr char(800);
 dcl-s returnCode int(5);
 //
 objschema = %upper(%trim(objschema));
-stmt = 'select oalib, oaname, ' +
+stmt = 'select coalesce(objlongschema,'''') as objlongschema, ' +
+            'coalesce(objname,'''') as objname, ' +
+            'coalesce(objtype,'''') as objtype, ' +
+            'coalesce(save_volume,'''') as save_volume ' +
+            'from table(qsys2.object_statistics(' +
+            ' object_schema => ? , ' +
+            ' objtypelist => ''*ALL'' )) where save_volume is not null';
+exec sql prepare preobjstat from :stmt;
+exec sql declare objstat cursor for preobjstat;
+exec sql open objstat using :objschema;
+exec sql fetch next from objstat into :objstat.objlongschema, 
+                                        :objstat.objname,
+                                        :objstat.objtype, 
+                                        :objstat.save_volume;
+dow sqlcod = 0;
+    if sqlcod = 0;
+        if %trim(objstat.save_volume) <> '';
+            clear stmt;
+            stmt = 'select oalib, oaname, ' +
                 'oatype, oausr, ' +
                 'oaobja, oaown, ' +
                 'oaanam, oagrpn, ' + 
@@ -66,12 +89,14 @@ stmt = 'select oalib, oaname, ' +
                 'oaref, oaread, ' + 
                 'oaadd, oaupd, ' + 
                 'oadlt, oaexec ' + 
-                'from ddscinfo.objaut where oalib = ''' + %trim(objschema) + '''' +
-                ' and oaname = ''ADDMIGS73''';
-exec sql prepare prelst from :stmt;
-exec sql declare lst cursor for prelst;
-exec sql open lst using :objschema;
-exec sql fetch next from lst into :objaut.oalib, :objaut.oaname,
+                'from ddscinfo.objaut' + %subst(%trim(objstat.save_volume) : 1 : 3) +
+                ' where oalib = ''' + %trim(objstat.objlongschema) + '''' +
+                ' and oaname = ''' + %trim(objstat.objname) + '''' +
+                ' and oatype = ''' + %trim(objstat.objtype) + '''';
+            exec sql prepare prelst from :stmt;
+            exec sql declare lst cursor for prelst;
+            exec sql open lst using :objschema;
+            exec sql fetch next from lst into :objaut.oalib, :objaut.oaname,
                                   :objaut.oatype, :objaut.oausr,
                                   :objaut.oaobja, :objaut.oaown,
                                   :objaut.oaanam, :objaut.oagrpn,
@@ -80,9 +105,9 @@ exec sql fetch next from lst into :objaut.oalib, :objaut.oaname,
                                   :objaut.oaref, :objaut.oaread,
                                   :objaut.oaadd, :objaut.oaupd,
                                   :objaut.oadlt, :objaut.oaexec;
-dow sqlcod = 0;
-    if sqlcod = 0;
-        exec sql values(select 
+            //dow sqlcod = 0;
+            if sqlcod = 0;
+                exec sql values(select 
                         user_name, 
                         coalesce(OBJ_AUTH,'*NONE') as OBJ_AUTH, 
                         coalesce(OWNER,'*NONE') as OWNER, 
@@ -111,296 +136,296 @@ dow sqlcod = 0;
                         :lst.OBJREF, :lst.DATA_READ, 
                         :lst.DATA_ADD, :lst.DATA_UPD, 
                         :lst.DATA_DEL, :lst.DATA_EXEC;
-        if sqlcod = 0;
-            if %trim(objaut.oausr) = '*GROUP';
-                objaut.oausr = %trim(objaut.oagrpn);
-            endif;
-            if %trim(objaut.oaown) <> %trim(lst.OWNER);
-                cmdstr = 'CHGOBJOWN OBJ(' + %trim(objaut.oalib) + 
+                if sqlcod = 0;
+                    if %trim(objaut.oausr) = '*GROUP';
+                        objaut.oausr = %trim(objaut.oagrpn);
+                    endif;
+                    if %trim(objaut.oaown) <> %trim(lst.OWNER);
+                        cmdstr = 'CHGOBJOWN OBJ(' + %trim(objaut.oalib) + 
                                     '/' + %trim(objaut.oaname) + 
                                     ') OBJTYPE(' + %trim(objaut.oatype) + 
                                     ') NEWOWN(' + %trim(objaut.oaown) + ')';
-                snd-msg %trim(cmdstr);
-                logsts = 'C';
-                logtxt = 'Command: ' + %trim(cmdstr);
-                writelog(logsts : logtxt);
-                returnCode = syscmd(cmdstr);
-            endif;
-            if %trim(objaut.oaanam) <> %trim(lst.AUTL);
-                cmdstr = 'GRTOBJAUT OBJ(' + %trim(objaut.oalib) + 
+                        snd-msg %trim(cmdstr);
+                        logsts = 'C';
+                        logtxt = 'Command: ' + %trim(cmdstr);
+                        writelog(logsts : logtxt);
+                        returnCode = syscmd(cmdstr);
+                    endif;
+                    if %trim(objaut.oaanam) <> %trim(lst.AUTL);
+                        cmdstr = 'GRTOBJAUT OBJ(' + %trim(objaut.oalib) + 
                                     '/' + %trim(objaut.oaname) + 
                                     ') OBJTYPE(' + %trim(objaut.oatype) + 
                                     ') AUTL(' + %trim(objaut.oaanam) + ')';
-                logsts = 'C';
-                logtxt = 'Command: ' + %trim(cmdstr);
-                writelog(logsts : logtxt);
-                returnCode = syscmd(cmdstr);
-            endif;
-            if %scan('USER' : %trim(objaut.oaobja)) <> 1;
-                if %trim(objaut.oaobja) <> %trim(lst.OBJ_AUTH);
-                    cmdstr = 'GRTOBJAUT OBJ(' + %trim(objaut.oalib) + 
+                        logsts = 'C';
+                        logtxt = 'Command: ' + %trim(cmdstr);
+                        writelog(logsts : logtxt);
+                        returnCode = syscmd(cmdstr);
+                    endif;
+                    if %scan('USER' : %trim(objaut.oaobja)) <> 1;
+                        if %trim(objaut.oaobja) <> %trim(lst.OBJ_AUTH);
+                            cmdstr = 'GRTOBJAUT OBJ(' + %trim(objaut.oalib) + 
                                 '/' + %trim(objaut.oaname) + 
                                 ') OBJTYPE(' + %trim(objaut.oatype) + 
                                 ') USER(' + %trim(objaut.oausr) + 
                                 ') AUT(' + %trim(objaut.oaobja) + 
                                 ') REPLACE(*YES)';
+                            logsts = 'C';
+                            logtxt = 'Command: ' + %trim(cmdstr);
+                            writelog(logsts : logtxt);
+                            returnCode = syscmd(cmdstr);
+                        endif;
+                    else; // = 'USER DEFINED'
+                        grtcmdstr = 'GRTOBJAUT OBJ(' + %trim(objaut.oalib) + 
+                            '/' + %trim(objaut.oaname) + 
+                            ') OBJTYPE(' + %trim(objaut.oatype) + 
+                            ') USER(' + %trim(objaut.oausr) + 
+                            ') AUT(';
+                        rvkcmdstr = 'RVKOBJAUT OBJ(' + %trim(objaut.oalib) + 
+                            '/' + %trim(objaut.oaname) + 
+                            ') OBJTYPE(' + %trim(objaut.oatype) + 
+                            ') USER(' + %trim(objaut.oausr) + 
+                            ') AUT(';
+                        if %trim(objaut.oaopr) = 'X';
+                            objaut.oaopr = 'YES';
+                            if %trim(objaut.oaopr) <> %trim(lst.OBJOPER);
+                                snd-msg 'oaopr:' + %trim(objaut.oaopr) + '  ' + %trim(lst.OBJOPER);
+                                grtcmdstr = %trimr(grtcmdstr) + ' *OBJOPR';
+                            endif;
+                        else;
+                            objaut.oaopr = 'NO';
+                            if %trim(objaut.oaopr) <> %trim(lst.OBJOPER);
+                                snd-msg 'oaopr:' + %trim(objaut.oaopr) + '  ' + %trim(lst.OBJOPER);
+                                rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJOPR';
+                            endif;                    
+                        endif;
+                        if %trim(objaut.oaomgt) = 'X';
+                            objaut.oaomgt = 'YES';
+                            if %trim(objaut.oaomgt) <> %trim(lst.OBJMGT);
+                                snd-msg 'oaomgt:' + %trim(objaut.oaomgt) + '  ' + %trim(lst.OBJMGT);
+                                grtcmdstr = %trimr(grtcmdstr) + ' *OBJMGT';
+                            endif;
+                        else;
+                            objaut.oaomgt = 'NO';
+                            if %trim(objaut.oaomgt) <> %trim(lst.OBJMGT);
+                                snd-msg 'oaomgt:' + %trim(objaut.oaomgt) + '  ' + %trim(lst.OBJMGT);
+                                rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJMGT';
+                            endif;                    
+                        endif;
+                        if %trim(objaut.oaexs) = 'X';
+                            objaut.oaexs = 'YES';
+                            if %trim(objaut.oaexs) <> %trim(lst.OBJEXIST);
+                                snd-msg 'oaexs:' + %trim(objaut.oaexs) + '  ' + %trim(lst.OBJEXIST);
+                                grtcmdstr = %trimr(grtcmdstr) + ' *OBJEXIST';
+                            endif;
+                        else;
+                            objaut.oaexs = 'NO';
+                            if %trim(objaut.oaexs) <> %trim(lst.OBJEXIST);
+                                snd-msg 'oaexs:' + %trim(objaut.oaexs) + '  ' + %trim(lst.OBJEXIST);
+                                rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJEXIST';
+                            endif;                    
+                        endif;
+                        if %trim(objaut.oaalt) = 'X';
+                            objaut.oaalt = 'YES';
+                            if %trim(objaut.oaalt) <> %trim(lst.OBJALTER);
+                                snd-msg 'oaalt:' + %trim(objaut.oaalt) + '  ' + %trim(lst.OBJALTER);
+                                grtcmdstr = %trimr(grtcmdstr) + ' *OBJALTER';
+                            endif;
+                        else;
+                            objaut.oaalt = 'NO';
+                            if %trim(objaut.oaalt) <> %trim(lst.OBJALTER);
+                                snd-msg 'oaalt:' + %trim(objaut.oaalt) + '  ' + %trim(lst.OBJALTER);
+                                rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJALTER';
+                            endif;                    
+                        endif;
+                        if %trim(objaut.oaref) = 'X';
+                            objaut.oaref = 'YES';
+                            if %trim(objaut.oaref) <> %trim(lst.OBJREF);
+                                snd-msg 'oaref:' + %trim(objaut.oaref) + '  ' + %trim(lst.OBJREF);
+                                grtcmdstr = %trimr(grtcmdstr) + ' *OBJREF';
+                            endif;
+                        else;
+                            objaut.oaref = 'NO';
+                            if %trim(objaut.oaref) <> %trim(lst.OBJREF);
+                                snd-msg 'oaref:' + %trim(objaut.oaref) + '  ' + %trim(lst.OBJREF);
+                                rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJREF';
+                            endif;                    
+                        endif;
+                        if %trim(objaut.oaread) = 'X';
+                            objaut.oaread = 'YES';
+                            if %trim(objaut.oaread) <> %trim(lst.DATA_READ);
+                                snd-msg 'oaread:' + %trim(objaut.oaread) + '  ' + %trim(lst.DATA_READ);
+                                grtcmdstr = %trimr(grtcmdstr) + ' *READ';
+                            endif;
+                        else;
+                            objaut.oaread = 'NO';
+                            if %trim(objaut.oaread) <> %trim(lst.DATA_READ);
+                                snd-msg 'oaread:' + %trim(objaut.oaread) + '  ' + %trim(lst.DATA_READ);
+                                rvkcmdstr = %trimr(rvkcmdstr) + ' *READ';
+                            endif;                    
+                        endif;
+                        if %trim(objaut.oaadd) = 'X';
+                            objaut.oaadd = 'YES';
+                            if %trim(objaut.oaadd) <> %trim(lst.DATA_ADD);
+                                snd-msg 'oaadd:' + %trim(objaut.oaadd) + '  ' + %trim(lst.DATA_ADD);
+                                grtcmdstr = %trimr(grtcmdstr) + ' *ADD';
+                            endif;
+                        else;
+                            objaut.oaadd = 'NO';
+                            if %trim(objaut.oaadd) <> %trim(lst.DATA_ADD);
+                                snd-msg 'oaadd:' + %trim(objaut.oaadd) + '  ' + %trim(lst.DATA_ADD);
+                                rvkcmdstr = %trimr(rvkcmdstr) + ' *ADD';
+                            endif;                    
+                        endif;
+                        if %trim(objaut.oaupd) = 'X';
+                            objaut.oaupd = 'YES';
+                            if %trim(objaut.oaupd) <> %trim(lst.DATA_UPD);
+                                snd-msg 'oaupd:' + %trim(objaut.oaupd) + '  ' + %trim(lst.DATA_UPD);
+                                grtcmdstr = %trimr(grtcmdstr) + ' *UPD';
+                            endif;
+                        else;
+                            objaut.oaupd = 'NO';
+                            if %trim(objaut.oaupd) <> %trim(lst.DATA_UPD);
+                                snd-msg 'oaupd:' + %trim(objaut.oaupd) + '  ' + %trim(lst.DATA_UPD);
+                                rvkcmdstr = %trimr(rvkcmdstr) + ' *UPD';
+                            endif;                    
+                        endif;
+                        if %trim(objaut.oadlt) = 'X';
+                            objaut.oadlt = 'YES';
+                            if %trim(objaut.oadlt) <> %trim(lst.DATA_DEL);
+                                snd-msg 'oadlt:' + %trim(objaut.oadlt) + '  ' + %trim(lst.DATA_DEL);
+                                grtcmdstr = %trimr(grtcmdstr) + ' *DLT';
+                            endif;
+                        else;
+                            objaut.oadlt = 'NO';
+                            if %trim(objaut.oadlt) <> %trim(lst.DATA_DEL);
+                                snd-msg 'oadlt:' + %trim(objaut.oadlt) + '  ' + %trim(lst.DATA_DEL);
+                                rvkcmdstr = %trimr(rvkcmdstr) + ' *DLT';
+                            endif;                    
+                        endif;
+                        if %trim(objaut.oaexec) = 'X';
+                            objaut.oaexec = 'YES';
+                            if %trim(objaut.oaexec) <> %trim(lst.DATA_EXEC);
+                                snd-msg 'oaexec:' + %trim(objaut.oaexec) + '  ' + %trim(lst.DATA_EXEC);
+                                grtcmdstr = %trimr(grtcmdstr) + ' *EXECUTE';
+                            endif;
+                        else;
+                            objaut.oaexec = 'NO';
+                            if %trim(objaut.oaexec) <> %trim(lst.DATA_EXEC);
+                                snd-msg 'oaexec:' + %trim(objaut.oaexec) + '  ' + %trim(lst.DATA_EXEC);
+                                rvkcmdstr = %trimr(rvkcmdstr) + ' *EXECUTE';
+                            endif;                    
+                        endif;
+                        grtcmdstr = %trim(grtcmdstr) + ') REPLACE(*YES)';
+                        rvkcmdstr = %trim(rvkcmdstr) + ')';
+                        logsts = 'C';
+                        logtxt = 'Grant command: ' + %trim(grtcmdstr);
+                        writelog(logsts : logtxt);
+                        returnCode = syscmd(grtcmdstr);
+                        logsts = 'C';
+                        logtxt = 'Revoke command: ' + %trim(rvkcmdstr);
+                        writelog(logsts : logtxt);
+                        returnCode = syscmd(rvkcmdstr);  
+                        clear grtcmdstr;
+                        clear rvkcmdstr;
+                    endif;
+                else; // file exist, current not exist, so grant
+                    grtcmdstr = 'GRTOBJAUT OBJ(' + %trim(objaut.oalib) + 
+                            '/' + %trim(objaut.oaname) + 
+                            ') OBJTYPE(' + %trim(objaut.oatype) + 
+                            ') USER(' + %trim(objaut.oausr) + 
+                            ') AUT(';
+                    rvkcmdstr = 'RVKOBJAUT OBJ(' + %trim(objaut.oalib) + 
+                            '/' + %trim(objaut.oaname) + 
+                            ') OBJTYPE(' + %trim(objaut.oatype) + 
+                            ') USER(' + %trim(objaut.oausr) + 
+                            ') AUT(';
+                    if %scan('USER' : %trim(objaut.oaobja)) <> 1;
+                        grtcmdstr = %trimr(grtcmdstr) + %trim(objaut.oaobja);
+                        grtcmdstr = %trim(grtcmdstr) + ') REPLACE(*YES)';
+                    else; // = 'USER DEFINED'
+                        if %trim(objaut.oaopr) = 'X';
+                            objaut.oaopr = 'YES';
+                            grtcmdstr = %trimr(grtcmdstr) + ' *OBJOPR';
+                        else;
+                            objaut.oaopr = 'NO';
+                            rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJOPR';
+                        endif;
+                        if %trim(objaut.oaomgt) = 'X';
+                            objaut.oaomgt = 'YES';
+                            grtcmdstr = %trimr(grtcmdstr) + ' *OBJMGT';
+                        else;
+                            objaut  = 'NO';
+                            rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJMGT';
+                        endif;
+                        if %trim(objaut.oaexs) = 'X';
+                            objaut.oaexs = 'YES';
+                            grtcmdstr = %trimr(grtcmdstr) + ' *OBJEXIST';
+                        else;
+                            objaut.oaexs = 'NO';
+                            rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJEXIST';
+                        endif;
+                        if %trim(objaut.oaalt) = 'X';
+                            objaut.oaalt = 'YES';
+                            grtcmdstr = %trimr(grtcmdstr) + ' *OBJALTER';
+                        else;
+                            objaut.oaalt = 'NO';
+                            rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJALTER';
+                        endif;
+                        if %trim(objaut.oaref) = 'X';
+                            objaut.oaref = 'YES';
+                            grtcmdstr = %trimr(grtcmdstr) + ' *OBJREF';
+                        else;
+                            objaut.oaref = 'NO';
+                            rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJREF';
+                        endif;
+                        if %trim(objaut.oaread) = 'X';
+                            objaut.oaread = 'YES';
+                            grtcmdstr = %trimr(grtcmdstr) + ' *READ';
+                        else;
+                            objaut.oaread = 'NO';
+                            rvkcmdstr = %trimr(rvkcmdstr) + ' *READ';
+                        endif;
+                        if %trim(objaut.oaadd) = 'X';
+                            objaut.oaadd = 'YES';
+                            grtcmdstr = %trimr(grtcmdstr) + ' *ADD';
+                        else;
+                            objaut.oaadd = 'NO';
+                            rvkcmdstr = %trimr(rvkcmdstr) + ' *ADD';
+                        endif;
+                        if %trim(objaut.oaupd) = 'X';
+                            objaut.oaupd = 'YES';
+                            grtcmdstr = %trimr(grtcmdstr) + ' *UPD';
+                        else;
+                            objaut.oaupd = 'NO';
+                            rvkcmdstr = %trimr(rvkcmdstr) + ' *UPD';
+                        endif;
+                        if %trim(objaut.oadlt) = 'X';
+                            objaut.oadlt = 'YES';
+                            grtcmdstr = %trimr(grtcmdstr) + ' *DLT';
+                        else;
+                            objaut.oadlt = 'NO';
+                            rvkcmdstr = %trimr(rvkcmdstr) + ' *DLT';
+                        endif;
+                        if %trim(objaut.oaexec) = 'X';
+                            objaut.oaexec = 'YES';
+                            grtcmdstr = %trimr(grtcmdstr) + ' *EXECUTE';
+                        else;
+                            objaut.oaexec = 'NO';
+                            rvkcmdstr = %trimr(rvkcmdstr) + ' *EXECUTE';
+                        endif;
+                        grtcmdstr = %trim(grtcmdstr) + ') REPLACE(*YES)';
+                        rvkcmdstr = %trim(rvkcmdstr) + ')';
+                    endif;
                     logsts = 'C';
-                    logtxt = 'Command: ' + %trim(cmdstr);
+                    logtxt = 'Grant command: ' + %trim(grtcmdstr);
                     writelog(logsts : logtxt);
-                    returnCode = syscmd(cmdstr);
+                    returnCode = syscmd(grtcmdstr);    
+                    clear grtcmdstr;
+                    clear rvkcmdstr;
                 endif;
-            else; // = 'USER DEFINED'
-                grtcmdstr = 'GRTOBJAUT OBJ(' + %trim(objaut.oalib) + 
-                            '/' + %trim(objaut.oaname) + 
-                            ') OBJTYPE(' + %trim(objaut.oatype) + 
-                            ') USER(' + %trim(objaut.oausr) + 
-                            ') AUT(';
-                rvkcmdstr = 'RVKOBJAUT OBJ(' + %trim(objaut.oalib) + 
-                            '/' + %trim(objaut.oaname) + 
-                            ') OBJTYPE(' + %trim(objaut.oatype) + 
-                            ') USER(' + %trim(objaut.oausr) + 
-                            ') AUT(';
-                if %trim(objaut.oaopr) = 'X';
-                    objaut.oaopr = 'YES';
-                    if %trim(objaut.oaopr) <> %trim(lst.OBJOPER);
-                        snd-msg 'oaopr:' + %trim(objaut.oaopr) + '  ' + %trim(lst.OBJOPER);
-                        grtcmdstr = %trimr(grtcmdstr) + ' *OBJOPR';
-                    endif;
-                else;
-                    objaut.oaopr = 'NO';
-                    if %trim(objaut.oaopr) <> %trim(lst.OBJOPER);
-                        snd-msg 'oaopr:' + %trim(objaut.oaopr) + '  ' + %trim(lst.OBJOPER);
-                        rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJOPR';
-                    endif;                    
-                endif;
-                if %trim(objaut.oaomgt) = 'X';
-                    objaut.oaomgt = 'YES';
-                    if %trim(objaut.oaomgt) <> %trim(lst.OBJMGT);
-                        snd-msg 'oaomgt:' + %trim(objaut.oaomgt) + '  ' + %trim(lst.OBJMGT);
-                        grtcmdstr = %trimr(grtcmdstr) + ' *OBJMGT';
-                    endif;
-                else;
-                    objaut.oaomgt = 'NO';
-                    if %trim(objaut.oaomgt) <> %trim(lst.OBJMGT);
-                        snd-msg 'oaomgt:' + %trim(objaut.oaomgt) + '  ' + %trim(lst.OBJMGT);
-                        rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJMGT';
-                    endif;                    
-                endif;
-                if %trim(objaut.oaexs) = 'X';
-                    objaut.oaexs = 'YES';
-                    if %trim(objaut.oaexs) <> %trim(lst.OBJEXIST);
-                        snd-msg 'oaexs:' + %trim(objaut.oaexs) + '  ' + %trim(lst.OBJEXIST);
-                        grtcmdstr = %trimr(grtcmdstr) + ' *OBJEXIST';
-                    endif;
-                else;
-                    objaut.oaexs = 'NO';
-                    if %trim(objaut.oaexs) <> %trim(lst.OBJEXIST);
-                        snd-msg 'oaexs:' + %trim(objaut.oaexs) + '  ' + %trim(lst.OBJEXIST);
-                        rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJEXIST';
-                    endif;                    
-                endif;
-                if %trim(objaut.oaalt) = 'X';
-                    objaut.oaalt = 'YES';
-                    if %trim(objaut.oaalt) <> %trim(lst.OBJALTER);
-                        snd-msg 'oaalt:' + %trim(objaut.oaalt) + '  ' + %trim(lst.OBJALTER);
-                        grtcmdstr = %trimr(grtcmdstr) + ' *OBJALTER';
-                    endif;
-                else;
-                    objaut.oaalt = 'NO';
-                    if %trim(objaut.oaalt) <> %trim(lst.OBJALTER);
-                        snd-msg 'oaalt:' + %trim(objaut.oaalt) + '  ' + %trim(lst.OBJALTER);
-                        rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJALTER';
-                    endif;                    
-                endif;
-                if %trim(objaut.oaref) = 'X';
-                    objaut.oaref = 'YES';
-                    if %trim(objaut.oaref) <> %trim(lst.OBJREF);
-                        snd-msg 'oaref:' + %trim(objaut.oaref) + '  ' + %trim(lst.OBJREF);
-                        grtcmdstr = %trimr(grtcmdstr) + ' *OBJREF';
-                    endif;
-                else;
-                    objaut.oaref = 'NO';
-                    if %trim(objaut.oaref) <> %trim(lst.OBJREF);
-                        snd-msg 'oaref:' + %trim(objaut.oaref) + '  ' + %trim(lst.OBJREF);
-                        rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJREF';
-                    endif;                    
-                endif;
-                if %trim(objaut.oaread) = 'X';
-                    objaut.oaread = 'YES';
-                    if %trim(objaut.oaread) <> %trim(lst.DATA_READ);
-                        snd-msg 'oaread:' + %trim(objaut.oaread) + '  ' + %trim(lst.DATA_READ);
-                        grtcmdstr = %trimr(grtcmdstr) + ' *READ';
-                    endif;
-                else;
-                    objaut.oaread = 'NO';
-                    if %trim(objaut.oaread) <> %trim(lst.DATA_READ);
-                        snd-msg 'oaread:' + %trim(objaut.oaread) + '  ' + %trim(lst.DATA_READ);
-                        rvkcmdstr = %trimr(rvkcmdstr) + ' *READ';
-                    endif;                    
-                endif;
-                if %trim(objaut.oaadd) = 'X';
-                    objaut.oaadd = 'YES';
-                    if %trim(objaut.oaadd) <> %trim(lst.DATA_ADD);
-                        snd-msg 'oaadd:' + %trim(objaut.oaadd) + '  ' + %trim(lst.DATA_ADD);
-                        grtcmdstr = %trimr(grtcmdstr) + ' *ADD';
-                    endif;
-                else;
-                    objaut.oaadd = 'NO';
-                    if %trim(objaut.oaadd) <> %trim(lst.DATA_ADD);
-                        snd-msg 'oaadd:' + %trim(objaut.oaadd) + '  ' + %trim(lst.DATA_ADD);
-                        rvkcmdstr = %trimr(rvkcmdstr) + ' *ADD';
-                    endif;                    
-                endif;
-                if %trim(objaut.oaupd) = 'X';
-                    objaut.oaupd = 'YES';
-                    if %trim(objaut.oaupd) <> %trim(lst.DATA_UPD);
-                        snd-msg 'oaupd:' + %trim(objaut.oaupd) + '  ' + %trim(lst.DATA_UPD);
-                        grtcmdstr = %trimr(grtcmdstr) + ' *UPD';
-                    endif;
-                else;
-                    objaut.oaupd = 'NO';
-                    if %trim(objaut.oaupd) <> %trim(lst.DATA_UPD);
-                        snd-msg 'oaupd:' + %trim(objaut.oaupd) + '  ' + %trim(lst.DATA_UPD);
-                        rvkcmdstr = %trimr(rvkcmdstr) + ' *UPD';
-                    endif;                    
-                endif;
-                if %trim(objaut.oadlt) = 'X';
-                    objaut.oadlt = 'YES';
-                    if %trim(objaut.oadlt) <> %trim(lst.DATA_DEL);
-                        snd-msg 'oadlt:' + %trim(objaut.oadlt) + '  ' + %trim(lst.DATA_DEL);
-                        grtcmdstr = %trimr(grtcmdstr) + ' *DLT';
-                    endif;
-                else;
-                    objaut.oadlt = 'NO';
-                    if %trim(objaut.oadlt) <> %trim(lst.DATA_DEL);
-                        snd-msg 'oadlt:' + %trim(objaut.oadlt) + '  ' + %trim(lst.DATA_DEL);
-                        rvkcmdstr = %trimr(rvkcmdstr) + ' *DLT';
-                    endif;                    
-                endif;
-                if %trim(objaut.oaexec) = 'X';
-                    objaut.oaexec = 'YES';
-                    if %trim(objaut.oaexec) <> %trim(lst.DATA_EXEC);
-                        snd-msg 'oaexec:' + %trim(objaut.oaexec) + '  ' + %trim(lst.DATA_EXEC);
-                        grtcmdstr = %trimr(grtcmdstr) + ' *EXECUTE';
-                    endif;
-                else;
-                    objaut.oaexec = 'NO';
-                    if %trim(objaut.oaexec) <> %trim(lst.DATA_EXEC);
-                        snd-msg 'oaexec:' + %trim(objaut.oaexec) + '  ' + %trim(lst.DATA_EXEC);
-                        rvkcmdstr = %trimr(rvkcmdstr) + ' *EXECUTE';
-                    endif;                    
-                endif;
-                grtcmdstr = %trim(grtcmdstr) + ') REPLACE(*YES)';
-                rvkcmdstr = %trim(rvkcmdstr) + ')';
-                logsts = 'C';
-                logtxt = 'Grant command: ' + %trim(grtcmdstr);
-                writelog(logsts : logtxt);
-                returnCode = syscmd(grtcmdstr);
-                logsts = 'C';
-                logtxt = 'Revoke command: ' + %trim(rvkcmdstr);
-                writelog(logsts : logtxt);
-                returnCode = syscmd(rvkcmdstr);  
-                clear grtcmdstr;
-                clear rvkcmdstr;
-            endif;
-        else; // file exist, current not exist, so grant
-            grtcmdstr = 'GRTOBJAUT OBJ(' + %trim(objaut.oalib) + 
-                            '/' + %trim(objaut.oaname) + 
-                            ') OBJTYPE(' + %trim(objaut.oatype) + 
-                            ') USER(' + %trim(objaut.oausr) + 
-                            ') AUT(';
-            rvkcmdstr = 'RVKOBJAUT OBJ(' + %trim(objaut.oalib) + 
-                            '/' + %trim(objaut.oaname) + 
-                            ') OBJTYPE(' + %trim(objaut.oatype) + 
-                            ') USER(' + %trim(objaut.oausr) + 
-                            ') AUT(';
-            if %scan('USER' : %trim(objaut.oaobja)) <> 1;
-                grtcmdstr = %trimr(grtcmdstr) + %trim(objaut.oaobja);
-                grtcmdstr = %trim(grtcmdstr) + ') REPLACE(*YES)';
-            else; // = 'USER DEFINED'
-                if %trim(objaut.oaopr) = 'X';
-                    objaut.oaopr = 'YES';
-                    grtcmdstr = %trimr(grtcmdstr) + ' *OBJOPR';
-                else;
-                    objaut.oaopr = 'NO';
-                    rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJOPR';
-                endif;
-                if %trim(objaut.oaomgt) = 'X';
-                    objaut.oaomgt = 'YES';
-                    grtcmdstr = %trimr(grtcmdstr) + ' *OBJMGT';
-                else;
-                    objaut  = 'NO';
-                    rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJMGT';
-                endif;
-                if %trim(objaut.oaexs) = 'X';
-                    objaut.oaexs = 'YES';
-                    grtcmdstr = %trimr(grtcmdstr) + ' *OBJEXIST';
-                else;
-                    objaut.oaexs = 'NO';
-                    rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJEXIST';
-                endif;
-                if %trim(objaut.oaalt) = 'X';
-                    objaut.oaalt = 'YES';
-                    grtcmdstr = %trimr(grtcmdstr) + ' *OBJALTER';
-                else;
-                    objaut.oaalt = 'NO';
-                    rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJALTER';
-                endif;
-                if %trim(objaut.oaref) = 'X';
-                    objaut.oaref = 'YES';
-                    grtcmdstr = %trimr(grtcmdstr) + ' *OBJREF';
-                else;
-                    objaut.oaref = 'NO';
-                    rvkcmdstr = %trimr(rvkcmdstr) + ' *OBJREF';
-                endif;
-                if %trim(objaut.oaread) = 'X';
-                    objaut.oaread = 'YES';
-                    grtcmdstr = %trimr(grtcmdstr) + ' *READ';
-                else;
-                    objaut.oaread = 'NO';
-                    rvkcmdstr = %trimr(rvkcmdstr) + ' *READ';
-                endif;
-                if %trim(objaut.oaadd) = 'X';
-                    objaut.oaadd = 'YES';
-                    grtcmdstr = %trimr(grtcmdstr) + ' *ADD';
-                else;
-                    objaut.oaadd = 'NO';
-                    rvkcmdstr = %trimr(rvkcmdstr) + ' *ADD';
-                endif;
-                if %trim(objaut.oaupd) = 'X';
-                    objaut.oaupd = 'YES';
-                    grtcmdstr = %trimr(grtcmdstr) + ' *UPD';
-                else;
-                    objaut.oaupd = 'NO';
-                    rvkcmdstr = %trimr(rvkcmdstr) + ' *UPD';
-                endif;
-                if %trim(objaut.oadlt) = 'X';
-                    objaut.oadlt = 'YES';
-                    grtcmdstr = %trimr(grtcmdstr) + ' *DLT';
-                else;
-                    objaut.oadlt = 'NO';
-                    rvkcmdstr = %trimr(rvkcmdstr) + ' *DLT';
-                endif;
-                if %trim(objaut.oaexec) = 'X';
-                    objaut.oaexec = 'YES';
-                    grtcmdstr = %trimr(grtcmdstr) + ' *EXECUTE';
-                else;
-                    objaut.oaexec = 'NO';
-                    rvkcmdstr = %trimr(rvkcmdstr) + ' *EXECUTE';
-                endif;
-                grtcmdstr = %trim(grtcmdstr) + ') REPLACE(*YES)';
-                rvkcmdstr = %trim(rvkcmdstr) + ')';
-            endif;
-            logsts = 'C';
-            logtxt = 'Grant command: ' + %trim(grtcmdstr);
-            writelog(logsts : logtxt);
-            returnCode = syscmd(grtcmdstr);    
-            clear grtcmdstr;
-            clear rvkcmdstr;
-        endif;
-        clear lst;
-        clear objaut;
-        exec sql fetch next from lst into :objaut.oalib, :objaut.oaname,
+                clear lst;
+                clear objaut;
+                exec sql fetch next from lst into :objaut.oalib, :objaut.oaname,
                                   :objaut.oatype, :objaut.oausr,
                                   :objaut.oaobja, :objaut.oaown,
                                   :objaut.oaanam, :objaut.oagrpn,
@@ -409,9 +434,17 @@ dow sqlcod = 0;
                                   :objaut.oaref, :objaut.oaread,
                                   :objaut.oaadd, :objaut.oaupd,
                                   :objaut.oadlt, :objaut.oaexec;
+            endif;
+            // enddo;
+            exec sql close lst;
+            exec sql fetch next from objstat into :objstat.objlongschema, 
+                                        :objstat.objname,
+                                        :objstat.objtype, 
+                                        :objstat.save_volume;
+        endif;
     endif;
 enddo;
-exec sql close lst;
+exec sql close objstat;
 
 clear objaut;
 clear lst;
@@ -432,12 +465,13 @@ dow sqlcod = 0;
         endif;
         ///
         clear stmt;
+        snd-msg %trim(objstat.save_volume);
         stmt = 'select oalib, oaname, oatype ' +
-                        'from ddscinfo.objaut ' +
-                        'where oalib = ? and ' +
-                        'oaname = ? and ' +
-                        'oatype = ? and ' +
-                        'oausr = ''*PUBLIC'' ';
+                        'from ddscinfo.objaut' + %subst(%trim(objstat.save_volume) : 1 : 3) +
+                        ' where oalib = ? and' +
+                        ' oaname = ? and' +
+                        ' oatype = ? and' +
+                        ' oausr = ''*PUBLIC'' ';
         exec sql prepare pchk from :stmt;
         exec sql declare chk cursor for pchk;
         exec sql open chk using :lst.sys_dname,:lst.sys_oname,:lst.objtype;
@@ -447,11 +481,11 @@ dow sqlcod = 0;
             clear stmt;
             stmt = 'select oalib, oaname, ' +
                         'oatype, oausr ' +
-                        'from ddscinfo.objaut ' +
-                        'where oalib = ? and ' +
-                        'oaname = ? and ' +
-                        'oatype = ? and ' +
-                        'oausr = ? ';
+                        'from ddscinfo.objaut' + %subst(%trim(objstat.save_volume) : 1 : 3) +
+                        ' where oalib = ? and' +
+                        ' oaname = ? and' +
+                        ' oatype = ? and' +
+                        ' oausr = ? ';
             exec sql prepare nxtfillst from :stmt;
             exec sql declare fillst cursor for nxtfillst;
             exec sql open fillst using :lst.sys_dname,:lst.sys_oname,:lst.objtype,:lst.user_name;
