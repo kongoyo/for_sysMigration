@@ -1,7 +1,11 @@
 **FREE
+// CALL PGM(STEVE/AUTCMPN) PARM(('STEVE') ('*PGM') ('STVSRC'))
+// 參數說明: Library  Type  Object
 ctl-opt option(*srcstmt) dftactgrp(*no);
 dcl-pi *n;
     objschema char(10);
+    objtp char(8);
+    objnm char(10);
 end-pi;
 dcl-pr syscmd int(10) ExtProc('system');
     *n Pointer Value Options(*String);
@@ -54,33 +58,61 @@ dcl-ds objstat qualified;
 end-ds;
 dcl-s stmt char(1500);
 dcl-s tot_count packed(5:0);
+dcl-s chg_count packed(5:0);
 dcl-s logsts char(1); // T: Log Title  C: Log Continue  E: Log Ending
 dcl-s logtxt char(1500);
 dcl-s grtcmdstr char(800);
 dcl-s rvkcmdstr char(800);
 dcl-s cmdstr char(800);
 dcl-s returnCode int(5);
+dcl-s cur_sysnm char(8);
+//
+clear logtxt;
+logsts = 'T';
+writelog(logsts : logtxt);
 //
 objschema = %upper(%trim(objschema));
+objtp = %upper(%trim(objtp));
+objnm = %upper(%trim(objnm));
+exec sql values current server into :cur_sysnm;
+if %scan('CLARK' : %trim(cur_sysnm)) = 1;
+    cur_sysnm = 'KSG01N';
+endif;
+//
+clear stmt;
+stmt = 'select count(*) from table(qsys2.object_statistics(' +
+            ' object_schema => ? ,' +
+            ' objtypelist => ? ,' +
+            ' object_name => ? ))';
+exec sql prepare pretotcnt from :stmt;
+exec sql declare totcnt cursor for pretotcnt;
+exec sql open totcnt using :objschema,:objtp,:objnm;
+exec sql fetch next from totcnt into :tot_count;
+exec sql close totcnt;
+//
+clear stmt;
 stmt = 'select coalesce(objlongschema,'''') as objlongschema, ' +
             'coalesce(objname,'''') as objname, ' +
             'coalesce(objtype,'''') as objtype, ' +
             'coalesce(save_volume,'''') as save_volume ' +
             'from table(qsys2.object_statistics(' +
-            ' object_schema => ? , ' +
-            ' objtypelist => ''*ALL'' )) where save_volume is not null';
+            ' object_schema => ? ,' +
+            ' objtypelist => ? ,' +
+            ' object_name => ? ))';
 exec sql prepare preobjstat from :stmt;
 exec sql declare objstat cursor for preobjstat;
-exec sql open objstat using :objschema;
+exec sql open objstat using :objschema,:objtp,:objnm;
 exec sql fetch next from objstat into :objstat.objlongschema, 
                                         :objstat.objname,
                                         :objstat.objtype, 
                                         :objstat.save_volume;
 dow sqlcod = 0;
     if sqlcod = 0;
-        if %trim(objstat.save_volume) <> '';
-            clear stmt;
-            stmt = 'select oalib, oaname, ' +
+        if %trim(objstat.save_volume) = '';
+            objstat.save_volume = 'G01Y25';
+        endif;
+        clear stmt;
+        stmt = 'select oalib, oaname, ' +
                 'oatype, oausr, ' +
                 'oaobja, oaown, ' +
                 'oaanam, oagrpn, ' + 
@@ -90,57 +122,57 @@ dow sqlcod = 0;
                 'oaadd, oaupd, ' + 
                 'oadlt, oaexec ' + 
                 'from ddscinfo.objaut' + %subst(%trim(objstat.save_volume) : 1 : 3) +
-                ' where oalib = ''' + %trim(objstat.objlongschema) + '''' +
-                ' and oaname = ''' + %trim(objstat.objname) + '''' +
-                ' and oatype = ''' + %trim(objstat.objtype) + '''';
-            exec sql prepare prelst from :stmt;
-            exec sql declare lst cursor for prelst;
-            exec sql open lst using :objschema;
-            exec sql fetch next from lst into :objaut.oalib, :objaut.oaname,
-                                  :objaut.oatype, :objaut.oausr,
-                                  :objaut.oaobja, :objaut.oaown,
-                                  :objaut.oaanam, :objaut.oagrpn,
-                                  :objaut.oaopr, :objaut.oaomgt,
-                                  :objaut.oaexs, :objaut.oaalt,
-                                  :objaut.oaref, :objaut.oaread,
-                                  :objaut.oaadd, :objaut.oaupd,
-                                  :objaut.oadlt, :objaut.oaexec;
-            //dow sqlcod = 0;
+                ' where oalib = ? ' +
+                ' and oaname = ? ' +
+                ' and oatype = ? ';
+        exec sql prepare prelst from :stmt;
+        exec sql declare lst cursor for prelst;
+        exec sql open lst using :objstat.objlongschema, :objstat.objname, :objstat.objtype;
+        exec sql fetch next from lst into :objaut.oalib, :objaut.oaname,
+                                                :objaut.oatype, :objaut.oausr,
+                                                :objaut.oaobja, :objaut.oaown,
+                                                :objaut.oaanam, :objaut.oagrpn,
+                                                :objaut.oaopr, :objaut.oaomgt,
+                                                :objaut.oaexs, :objaut.oaalt,
+                                                :objaut.oaref, :objaut.oaread,
+                                                :objaut.oaadd, :objaut.oaupd,
+                                                :objaut.oadlt, :objaut.oaexec;
+        dow sqlcod = 0;
             if sqlcod = 0;
-                exec sql values(select 
-                        user_name, 
-                        coalesce(OBJ_AUTH,'*NONE') as OBJ_AUTH, 
-                        coalesce(OWNER,'*NONE') as OWNER, 
-                        COALESCE(AUTL,'*NONE') as AUTL, 
-                        coalesce(GROUP,' ') as GROUP, 
-                        coalesce(OBJOPER,' ') as OBJOPER, 
-                        coalesce(OBJMGT,' ') as OBJMGT, 
-                        coalesce(OBJEXIST,' ') as OBJEXIST, 
-                        coalesce(OBJALTER,' ') as OBJALTER, 
-                        coalesce(OBJREF,' ') as OBJREF, 
-                        coalesce(DATA_READ,' ') as DATA_READ, 
-                        coalesce(DATA_ADD,' ') as DATA_ADD, 
-                        coalesce(DATA_UPD,' ') as DATA_UPD, 
-                        coalesce(DATA_DEL,' ') as DATA_DEL, 
-                        coalesce(DATA_EXEC,' ') as DATA_EXEC 
-                        from qsys2.object_privileges 
-                        where sys_dname = :objaut.oalib and 
-                                sys_oname = :objaut.oaname and
-                                objtype = :objaut.oatype and
-                                user_name = :objaut.oausr )
-                into    :lst.user_name, 
-                        :lst.OBJ_AUTH, :lst.OWNER, 
-                        :lst.AUTL, :lst.GROUP, 
-                        :lst.OBJOPER, :lst.OBJMGT, 
-                        :lst.OBJEXIST, :lst.OBJALTER, 
-                        :lst.OBJREF, :lst.DATA_READ, 
-                        :lst.DATA_ADD, :lst.DATA_UPD, 
-                        :lst.DATA_DEL, :lst.DATA_EXEC;
+                exec sql values(select user_name, 
+                                            coalesce(OBJ_AUTH,'*NONE') as OBJ_AUTH, 
+                                            coalesce(OWNER,'*NONE') as OWNER, 
+                                            COALESCE(AUTL,'*NONE') as AUTL, 
+                                            coalesce(GROUP,' ') as GROUP, 
+                                            coalesce(OBJOPER,' ') as OBJOPER, 
+                                            coalesce(OBJMGT,' ') as OBJMGT, 
+                                            coalesce(OBJEXIST,' ') as OBJEXIST, 
+                                            coalesce(OBJALTER,' ') as OBJALTER, 
+                                            coalesce(OBJREF,' ') as OBJREF, 
+                                            coalesce(DATA_READ,' ') as DATA_READ, 
+                                            coalesce(DATA_ADD,' ') as DATA_ADD, 
+                                            coalesce(DATA_UPD,' ') as DATA_UPD, 
+                                            coalesce(DATA_DEL,' ') as DATA_DEL, 
+                                            coalesce(DATA_EXEC,' ') as DATA_EXEC 
+                                            from qsys2.object_privileges 
+                                            where sys_dname = :objaut.oalib and 
+                                                    sys_oname = :objaut.oaname and
+                                                    objtype = :objaut.oatype and
+                                                    user_name = :objaut.oausr )
+                                            into    :lst.user_name, 
+                                                    :lst.OBJ_AUTH, :lst.OWNER, 
+                                                    :lst.AUTL, :lst.GROUP, 
+                                                    :lst.OBJOPER, :lst.OBJMGT, 
+                                                    :lst.OBJEXIST, :lst.OBJALTER, 
+                                                    :lst.OBJREF, :lst.DATA_READ, 
+                                                    :lst.DATA_ADD, :lst.DATA_UPD, 
+                                                    :lst.DATA_DEL, :lst.DATA_EXEC;
                 if sqlcod = 0;
                     if %trim(objaut.oausr) = '*GROUP';
                         objaut.oausr = %trim(objaut.oagrpn);
                     endif;
                     if %trim(objaut.oaown) <> %trim(lst.OWNER);
+                        chg_count += 1;
                         cmdstr = 'CHGOBJOWN OBJ(' + %trim(objaut.oalib) + 
                                     '/' + %trim(objaut.oaname) + 
                                     ') OBJTYPE(' + %trim(objaut.oatype) + 
@@ -152,6 +184,7 @@ dow sqlcod = 0;
                         returnCode = syscmd(cmdstr);
                     endif;
                     if %trim(objaut.oaanam) <> %trim(lst.AUTL);
+                        chg_count += 1;
                         cmdstr = 'GRTOBJAUT OBJ(' + %trim(objaut.oalib) + 
                                     '/' + %trim(objaut.oaname) + 
                                     ') OBJTYPE(' + %trim(objaut.oatype) + 
@@ -163,6 +196,7 @@ dow sqlcod = 0;
                     endif;
                     if %scan('USER' : %trim(objaut.oaobja)) <> 1;
                         if %trim(objaut.oaobja) <> %trim(lst.OBJ_AUTH);
+                            chg_count += 1;
                             cmdstr = 'GRTOBJAUT OBJ(' + %trim(objaut.oalib) + 
                                 '/' + %trim(objaut.oaname) + 
                                 ') OBJTYPE(' + %trim(objaut.oatype) + 
@@ -320,10 +354,12 @@ dow sqlcod = 0;
                         logsts = 'C';
                         logtxt = 'Grant command: ' + %trim(grtcmdstr);
                         writelog(logsts : logtxt);
+                        chg_count += 1;
                         returnCode = syscmd(grtcmdstr);
                         logsts = 'C';
                         logtxt = 'Revoke command: ' + %trim(rvkcmdstr);
                         writelog(logsts : logtxt);
+                        chg_count += 1;
                         returnCode = syscmd(rvkcmdstr);  
                         clear grtcmdstr;
                         clear rvkcmdstr;
@@ -419,53 +455,52 @@ dow sqlcod = 0;
                     logsts = 'C';
                     logtxt = 'Grant command: ' + %trim(grtcmdstr);
                     writelog(logsts : logtxt);
+                    chg_count += 1;
                     returnCode = syscmd(grtcmdstr);    
                     clear grtcmdstr;
                     clear rvkcmdstr;
                 endif;
-                clear lst;
-                clear objaut;
-                exec sql fetch next from lst into :objaut.oalib, :objaut.oaname,
-                                  :objaut.oatype, :objaut.oausr,
-                                  :objaut.oaobja, :objaut.oaown,
-                                  :objaut.oaanam, :objaut.oagrpn,
-                                  :objaut.oaopr, :objaut.oaomgt,
-                                  :objaut.oaexs, :objaut.oaalt,
-                                  :objaut.oaref, :objaut.oaread,
-                                  :objaut.oaadd, :objaut.oaupd,
-                                  :objaut.oadlt, :objaut.oaexec;
             endif;
-            // enddo;
-            exec sql close lst;
-            exec sql fetch next from objstat into :objstat.objlongschema, 
-                                        :objstat.objname,
-                                        :objstat.objtype, 
-                                        :objstat.save_volume;
-        endif;
-    endif;
-enddo;
-exec sql close objstat;
+            clear lst;
+            clear objaut;
+            exec sql fetch next from lst into :objaut.oalib, :objaut.oaname,
+                                                :objaut.oatype, :objaut.oausr,
+                                                :objaut.oaobja, :objaut.oaown,
+                                                :objaut.oaanam, :objaut.oagrpn,
+                                                :objaut.oaopr, :objaut.oaomgt,
+                                                :objaut.oaexs, :objaut.oaalt,
+                                                :objaut.oaref, :objaut.oaread,
+                                                :objaut.oaadd, :objaut.oaupd,
+                                                :objaut.oadlt, :objaut.oaexec;
 
+        enddo;
+        exec sql close lst;
+        // endif;
+    endif;
+    exec sql fetch next from objstat into :objstat.objlongschema, 
+                                                :objstat.objname,
+                                                :objstat.objtype, 
+                                                :objstat.save_volume;
+enddo;
 clear objaut;
 clear lst;
 //
 clear stmt;
 stmt = 'select sys_dname, sys_oname, objtype, USER_NAME ' +
             'from qsys2.object_privileges ' +
-            'where sys_dname = ? ';
+            'where sys_dname = ? ' +
+            'and sys_oname = ? ' +
+            'and objtype = ? ';
 exec sql prepare nxtcurlst from :stmt;
 exec sql declare curlst cursor for nxtcurlst;
-exec sql open curlst using :objschema;
+exec sql open curlst using :objstat.objlongschema,:objstat.objname,:objstat.objtype;
 exec sql fetch next from curlst into :lst.sys_dname, :lst.sys_oname,
                                   :lst.objtype, :lst.user_name;
 dow sqlcod = 0;
     if sqlcod = 0;
-        if lst.user_name = '*PUBLIC';
-            tot_count += 1;
-        endif;
         ///
         clear stmt;
-        snd-msg %trim(objstat.save_volume);
+        // snd-msg %trim(objstat.save_volume);
         stmt = 'select oalib, oaname, oatype ' +
                         'from ddscinfo.objaut' + %subst(%trim(objstat.save_volume) : 1 : 3) +
                         ' where oalib = ? and' +
@@ -506,6 +541,7 @@ dow sqlcod = 0;
                 logsts = 'C';
                 logtxt = 'Revoke command: ' + %trim(rvkcmdstr);
                 writelog(logsts : logtxt);
+                chg_count += 1;
                 returnCode = syscmd(rvkcmdstr);
                 clear grtcmdstr;
                 clear rvkcmdstr;
@@ -525,6 +561,12 @@ enddo;
 exec sql close curlst;
 //
 snd-msg 'tot_count: ' + %trim(%char(tot_count));
+snd-msg 'chg_count: ' + %trim(%char(chg_count));
+
+clear logtxt;
+logsts = 'E';
+writelog(logsts : logtxt);
+
 *inlr = *on;
 return;
 
@@ -542,6 +584,9 @@ dcl-proc writelog;
     exec sql values(current_time) into :cur_time;
     if %len(%trim(cur_sysnm)) = 0;
         exec sql values current server into :cur_sysnm;
+        if %scan('CLARK' : %trim(cur_sysnm)) = 1;
+            cur_sysnm = 'KSG01N';
+        endif;
     endif;
     if %len(%trim(logLocation)) = 0;
         logLocation = '/home/autcmpn_' + %trim(cur_sysnm) + 

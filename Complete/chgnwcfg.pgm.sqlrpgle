@@ -17,9 +17,6 @@ logsts = 'C';
 logtxt = 'Remote system process start';
 writelog(logsts:logtxt);
 // exec sql values current server into :cur_sysnm;
-// for Test Only
-cur_sysnm = 'KSF03N';
-// for Test Only
 exec sql set option commit = *none ;
 
 // do something from here
