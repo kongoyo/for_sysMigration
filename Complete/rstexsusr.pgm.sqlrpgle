@@ -1,218 +1,242 @@
 **FREE
-//
-// 呼叫時需要輸入磁帶機名稱，可用TAPXX或是TAPMLBXX
-// 查詢 table ( qsys2.users() ) 取得已存在的使用者帳號清單
-// 查詢 table ( qsys2.qsys2.object_statistics ) 取得 save_volume 資訊
-// 組合指令 RSTUSRPRF 指定 VOLUME 進行倒檔
-// 
+// Usage: 
 ctl-opt option(*srcstmt) dftactgrp(*no);
-// Declare User input Tape device
 dcl-pi *n;
   tapdev char(8);
 end-pi;
-// Declare data structures
-DCL-DS usrsavdev QUALIFIED;
-  objname     varchar(10);
-  save_volume varchar(71);
-  save_seqnum packed(10:0);
-END-DS;
-//
-dcl-pr syscmd int(10) ExtProc('system');
-  *n Pointer Value Options(*String);
-end-pr;
-//
-dcl-s cmdstr varchar(7000);
-dcl-s returnCode int(5);
-dcl-s stmt varchar(512);
-dcl-s username char(10);
-dcl-s usraut varchar(5000);
-
-dcl-s cur_sysnm varchar(10);
-dcl-s ifsfnm char(200);
-dcl-s cur_date date;
-dcl-s cur_time time;
-dcl-s count int(10) inz(0);
-dcl-s logtxt char(200);
-
+// set sql commit option
+exec sql set option commit = *none;
+// Upper input parameter
 tapdev = %upper(%trim(tapdev));
-
-// Declare cursor for table qsys2.users()
-clear stmt;
-stmt = 'select odobnm from table(qsys2.users())';
-exec sql prepare preusrlst from :stmt;
-exec sql declare curusrlst cursor for preusrlst;
-exec sql open curusrlst;
-exec sql fetch next from curusrlst into :username;
-//
-dow sqlcod = 0;
-  if sqlcod = 0;
-    if %scan('Q' : username : 1) <> 1;
-      count = count + 1;
-
-      logtxt = ' ' + %trim(%char(cur_date)) + 
-         ' ' + %trim(%char(cur_time)) + 
-         ' ' + %trim(cur_sysnm) + 
-         ' ' + '----- Process User ' + %trim(username) + ' -----';
-      exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
-                                        trim(:logtxt),
-                                        OVERWRITE => 'APPEND',
-                                        END_OF_LINE => 'CRLF'); 
-
-      exec sql select 
-               coalesce(objname,'') as objname,
-               coalesce(save_volume,'') as save_volume,
-               coalesce(save_sequence_number,0) as save_seqnum
-               into :usrsavdev.objname, 
-                    :usrsavdev.save_volume, 
-                    :usrsavdev.save_seqnum
-              from table(qsys2.object_statistics(
-              object_schema => 'QSYS', 
-              objtypelist => '*USRPRF', 
-              object_name => trim(:username))) ;  
-      // snd-msg '  SQL code   : ' + %char(sqlcod);
-      // logtxt = ' ' + %trim(%char(cur_date)) + 
-      //    ' ' + %trim(%char(cur_time)) + 
-      //    ' ' + %trim(cur_sysnm) + 
-      //    ' ' + '  SQL code   : ' + %char(sqlcod);
-      // exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
-      //                                   trim(:logtxt),
-      //                                   OVERWRITE => 'APPEND',
-      //                                   END_OF_LINE => 'CRLF'); 
-      // Action section
-      if sqlcod = 0 ;
-        if %trim(usrsavdev.save_volume) <> '';
-        // Restore *usrprf
-          cmdstr = 'RSTUSRPRF DEV(' + %trim(tapdev) +
-              ') USRPRF(' + %trim(usrsavdev.objname) +
-              ') VOL(' + %trim(usrsavdev.save_volume) +
-              ') SEQNBR(' + %trim(%char(usrsavdev.save_seqnum)) +
-              ') ALWOBJDIF(*ALL) SECDTA(*USRPRF)';
-        // snd-msg '1st Command: ' + %trim(cmdstr);
-          exec sql call qsys2.qcmdexc(:cmdstr);
-          logtxt = ' ' + %trim(%char(cur_date)) + 
-         ' ' + %trim(%char(cur_time)) + 
-         ' ' + %trim(cur_sysnm) + 
-         ' ' + '1st Command: ' + %trim(cmdstr);
-          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
-                                          trim(:logtxt),
-                                          OVERWRITE => 'APPEND',
-                                          END_OF_LINE => 'CRLF'); 
-
-        // returnCode = syscmd(cmdstr);
-        // if returnCode <> 0;
-        //   snd-msg 'sqlcod: ' + %char(sqlcod);
-        //   snd-msg '--- Restore *usrprf error ---';
-        // endif;
-        // Restore *pvtaut
-          cmdstr = 'RSTUSRPRF DEV(' + %trim(tapdev) +
-              ') USRPRF(' + %trim(usrsavdev.objname) +
-              ') VOL(' + %trim(usrsavdev.save_volume) +
-              ') SEQNBR(' + %trim(%char(usrsavdev.save_seqnum)) +
-              ') ALWOBJDIF(*ALL) SECDTA(*PVTAUT)';
-        // snd-msg '2nd Command: ' + %trim(cmdstr);
-          exec sql call qsys2.qcmdexc(:cmdstr);
-          logtxt = ' ' + %trim(%char(cur_date)) + 
-         ' ' + %trim(%char(cur_time)) + 
-         ' ' + %trim(cur_sysnm) + 
-         ' ' + '2nd Command: ' + %trim(cmdstr);
-          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
-                                          trim(:logtxt),
-                                          OVERWRITE => 'APPEND',
-                                          END_OF_LINE => 'CRLF'); 
-
-        // returnCode = syscmd(cmdstr);
-        // if returnCode <> 0;
-        //   snd-msg 'sqlcod: ' + %char(sqlcod);
-        //   snd-msg '--- Restore *pvtaut error ---';
-        // endif;
-        // Restore *pwdgrp
-          cmdstr = 'RSTUSRPRF DEV(' + %trim(tapdev) +
-              ') USRPRF(' + %trim(usrsavdev.objname) +
-              ') VOL(' + %trim(usrsavdev.save_volume) +
-              ') SEQNBR(' + %trim(%char(usrsavdev.save_seqnum)) +
-              ') ALWOBJDIF(*ALL) SECDTA(*PWDGRP)';
-        // snd-msg '3rd Command: ' + %trim(cmdstr);
-          exec sql call qsys2.qcmdexc(:cmdstr);
-          logtxt = ' ' + %trim(%char(cur_date)) + 
-         ' ' + %trim(%char(cur_time)) + 
-         ' ' + %trim(cur_sysnm) + 
-         ' ' + '3rd Command: ' + %trim(cmdstr);
-          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
-                                          trim(:logtxt),
-                                          OVERWRITE => 'APPEND',
-                                          END_OF_LINE => 'CRLF'); 
-
-        // returnCode = syscmd(cmdstr);
-        // if returnCode <> 0;
-        //   snd-msg 'sqlcod: ' + %char(sqlcod);
-        //   snd-msg '--- Restore *pwdgrp error ---';
-        // endif;
-        // usraut
-          usraut = %trimr(usraut) + ' ' + %trim(usrsavdev.objname) + ' ';
-        endif;
-      endif;
-      // Action section
-      if count = 10;
-        clear cmdstr;
-        if %len(%trim(usraut)) > 0;
-          // snd-msg 'Usraut: ' + %trim(usraut);
-          cmdstr = 'RSTAUT USRPRF(' + %trim(usraut) + ')';
-          exec sql call qsys2.qcmdexc(:cmdstr);
-          logtxt = ' ' + %trim(%char(cur_date)) + 
-           ' ' + %trim(%char(cur_time)) + 
-           ' ' + %trim(cur_sysnm) + 
-           ' ' + %trim(cmdstr);
-          exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
-                                            trim(:logtxt),
-                                            OVERWRITE => 'APPEND',
-                                            END_OF_LINE => 'CRLF'); 
-        endif;
-        // snd-msg 'Restore user authority: ' + %trim(cmdstr);
-        clear count;
-        clear usraut;
-      endif;
-      // returnCode = syscmd(cmdstr);
-      // snd-msg '----- Finish User ' + %trim(username) + ' -----';
-      logtxt = ' ' + %trim(%char(cur_date)) + 
-         ' ' + %trim(%char(cur_time)) + 
-         ' ' + %trim(cur_sysnm) + 
-         ' ' + '----- Finish User ' + %trim(username) + ' -----';
-      exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
-                                        trim(:logtxt),
-                                        OVERWRITE => 'APPEND',
-                                        END_OF_LINE => 'CRLF');
-    endif;
-  endif;
-  exec sql fetch next from curusrlst into :username;    
-enddo;
-
-clear cmdstr;
-// snd-msg 'Usraut: ' + %trim(usraut);
-if %len(%trim(usraut)) > 0;
-  cmdstr = 'RSTAUT USRPRF(' + %trim(usraut) + ')';
-  exec sql call qsys2.qcmdexc(:cmdstr);
-  logtxt = ' ' + %trim(%char(cur_date)) + 
-         ' ' + %trim(%char(cur_time)) + 
-         ' ' + %trim(cur_sysnm) + 
-         ' ' + %trim(cmdstr);
-  exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
-                                  trim(:logtxt),
-                                  OVERWRITE => 'APPEND',
-                                  END_OF_LINE => 'CRLF'); 
-endif;
-// snd-msg 'Restore user authority: ' + %trim(cmdstr);
-clear count;
-clear usraut;
-logtxt = ' ' + %trim(%char(cur_date)) + 
-         ' ' + %trim(%char(cur_time)) + 
-         ' ' + %trim(cur_sysnm) + 
-         ' ' + 'Restore exist user profile finished.';
-exec sql call QSYS2.IFS_WRITE_UTF8(trim(:ifsfnm),
-                          trim(:logtxt),
-                          OVERWRITE => 'APPEND',
-                          END_OF_LINE => 'CRLF');
-
-exec sql close curusrlst;
+// prepare restore user list
+prep_rstusr();
+// execute restore user command
+exec_rstusr(tapdev);
+exec_rstaut();
 
 *inlr = *on;
 return;
+
+dcl-proc prep_rstusr;
+  // prepare restore user list
+  exec sql drop table ddscinfo.exsusrvol;
+  exec sql create table ddscinfo.exsusrvol as
+                  (select objname,
+                          coalesce(save_volume, 'NA') as savvol,
+                          coalesce(save_sequence_number, 0) as savseq
+                    from table ( qsys2.object_statistics(
+                      object_schema => 'QSYS', objtypelist => '*USRPRF'
+                      ))
+                    where objname not like 'Q%' and 
+                          (save_volume <> 'NA' and save_sequence_number <> 0)
+                    order by save_volume
+                  ) with data;
+  return;
+end-proc;
+
+dcl-proc exec_rstusr;
+  dcl-pi *n;
+    tapdev char(8);
+  end-pi;
+  dcl-ds exsusrvol extname('DDSCINFO/EXSUSRVOL') qualified end-ds; 
+  dcl-pr syscmd int(10) ExtProc('system');
+    *n Pointer Value Options(*String);
+  end-pr;
+  dcl-s cmdstr varchar(512);
+  dcl-s returnCode int(5);
+  dcl-s logsts char(1); // T: Log Title  C: Log Continue  E: Log Ending
+  dcl-s logtxt char(1500);
+  // read file
+  exec sql declare wk_rstusr cursor for 
+            select objname, savvol, savseq from ddscinfo.exsusrvol order by savvol;
+  exec sql open wk_rstusr;
+  exec sql fetch next from wk_rstusr into :exsusrvol;
+  dow sqlcod = 0;      
+    // snd-msg 'User: ' + exsusrvol.objname + '  Volume: ' + exsusrvol.savvol +
+    //         '  Sequence: ' + %char(exsusrvol.savseq);
+    // SECDTA(*USRPRF)
+    cmdstr = 'RSTUSRPRF DEV(' + %trim(tapdev) +
+              ') USRPRF(' + %trim(exsusrvol.objname) +
+              ') VOL(' + %trim(exsusrvol.savvol) +
+              ') SEQNBR(' + %trim(%char(exsusrvol.savseq)) +
+              ') ALWOBJDIF(*ALL) SECDTA(*USRPRF)';
+    // returnCode = syscmd(cmdstr);
+    // snd-msg 'CMD: ' + %trim(cmdstr);
+    if returnCode <> 0;
+      logsts = 'C';
+      logtxt = 'User ' + %trim(exsusrvol.objname) + ' restore *usrprf from ' +
+               %trim(exsusrvol.savvol) + ' failed.';
+      writelog(logsts: logtxt);
+    endif;
+    // SECDTA(*PVTAUT)
+    cmdstr = 'RSTUSRPRF DEV(' + %trim(tapdev) +
+              ') USRPRF(' + %trim(exsusrvol.objname) +
+              ') VOL(' + %trim(exsusrvol.savvol) +
+              ') SEQNBR(' + %trim(%char(exsusrvol.savseq)) +
+              ') ALWOBJDIF(*ALL) SECDTA(*PVTAUT)';
+    // returnCode = syscmd(cmdstr);
+    // snd-msg 'CMD: ' + %trim(cmdstr);
+    if returnCode <> 0;
+      logsts = 'C';
+      logtxt = 'User ' + %trim(exsusrvol.objname) + ' restore *pvtaut from ' +
+               %trim(exsusrvol.savvol) + ' failed.';
+      writelog(logsts: logtxt);
+    endif;
+    // SECDTA(*PWDGRP)
+    cmdstr = 'RSTUSRPRF DEV(' + %trim(tapdev) +
+              ') USRPRF(' + %trim(exsusrvol.objname) +
+              ') VOL(' + %trim(exsusrvol.savvol) +
+              ') SEQNBR(' + %trim(%char(exsusrvol.savseq)) +
+              ') ALWOBJDIF(*ALL) SECDTA(*PWDGRP)';
+    // returnCode = syscmd(cmdstr);
+    // snd-msg 'CMD: ' + %trim(cmdstr);
+    if returnCode <> 0;
+      logsts = 'C';
+      logtxt = 'User ' + %trim(exsusrvol.objname) + ' restore *pwdgrp from ' +
+               %trim(exsusrvol.savvol) + ' failed.';
+      writelog(logsts: logtxt);
+    endif;
+    exec sql fetch next from wk_rstusr into :exsusrvol;
+  enddo;
+  exec sql close wk_rstusr;
+  return;
+end-proc;
+
+dcl-proc exec_rstaut;
+  dcl-s usraut char(100);
+  dcl-ds exsusrvol extname('DDSCINFO/EXSUSRVOL') qualified end-ds; 
+  dcl-pr syscmd int(10) ExtProc('system');
+    *n Pointer Value Options(*String);
+  end-pr;
+  dcl-s cmdstr varchar(512);
+  dcl-s returnCode int(5);
+  dcl-s logsts char(1); // T: Log Title  C: Log Continue  E: Log Ending
+  dcl-s logtxt char(1500);
+  dcl-s cnt int(5) inz(0);
+  // read file
+  exec sql declare wk_rstaut cursor for 
+            select objname from ddscinfo.exsusrvol order by savvol;
+  exec sql open wk_rstaut;
+  exec sql fetch next from wk_rstaut into :exsusrvol.objname;
+  dow sqlcod = 0;
+    usraut = %trimr(usraut) + ' ' + %trim(exsusrvol.objname) + ' ';
+    cnt += 1;
+    if %rem(cnt : 10) = 0;
+      cmdstr = 'RSTAUT USRPRF(' + %trim(usraut) + ')';
+      // returnCode = syscmd(cmdstr);
+      snd-msg 'CMD: ' + %trim(cmdstr);
+      if returnCode <> 0;
+        logsts = 'C';
+        logtxt = 'Restore user authority failed.';
+        writelog(logsts: logtxt);
+      endif;
+      clear usraut;
+    endif;
+    exec sql fetch next from wk_rstaut into :exsusrvol.objname;
+  enddo;
+  if %len(%trim(usraut)) > 0;
+    cmdstr = 'RSTAUT USRPRF(' + %trim(usraut) + ')';
+    // returnCode = syscmd(cmdstr);
+    snd-msg 'CMD: ' + %trim(cmdstr);
+    if returnCode <> 0;
+      logsts = 'C';
+      logtxt = 'Restore user authority failed.';
+      writelog(logsts: logtxt);
+    endif;
+    clear usraut;
+  endif;
+  exec sql close wk_rstaut;
+  return;
+end-proc;
+
+dcl-proc writelog;
+  dcl-pi *n;
+    logsts char(1); // T: Log Title  C: Log Continue  E: Log Ending
+    logtxt char(1500);
+  end-pi;
+  dcl-s cur_date date;
+  dcl-s cur_time time;
+  dcl-s cur_sysnm char(8) static;
+  dcl-s logLocation char(200) static;
+    //
+  exec sql values(current_date) into :cur_date;
+  exec sql values(current_time) into :cur_time;
+  if %len(%trim(cur_sysnm)) = 0;
+    exec sql values current server into :cur_sysnm;
+        // // test only
+        // if %scan('CLARK' : %trim(cur_sysnm)) = 1;
+        //     cur_sysnm = 'KSG01N';
+        // endif;
+        // // test only
+  endif;
+  if %len(%trim(logLocation)) = 0;
+    logLocation = '/home/rstexsusr_' + %trim(cur_sysnm) + 
+                        '_' + %trim(%scanrpl('-' : '' : %char(cur_date))) + 
+                        '_' + %trim(%scanrpl('.' : '' : %char(cur_time))) + '.log';
+  endif;
+  select;
+    when logsts = 'T';
+      exec sql call QSYS2.IFS_WRITE_UTF8(trim(:logLocation),
+                            '',
+                            OVERWRITE => 'REPLACE',
+                            END_OF_LINE => 'NONE');
+      if %len(%trim(logtxt)) = 0;
+        logtxt = '--- Process start ---';
+      endif;
+      exec sql call QSYS2.IFS_WRITE_UTF8(trim(:logLocation), 
+                            ' ' || trim(char(:cur_date)) ||
+                            ' ' || trim(char(:cur_time)) ||
+                            ' ' || trim(:cur_sysnm) ||
+                            ' ' || trim(:logtxt), 
+                            END_OF_LINE => 'CRLF');
+    when logsts = 'C';
+      if %len(%trim(logtxt)) = 0;
+        logtxt = '--- Process continue ---';
+      endif;
+      exec sql call QSYS2.IFS_WRITE_UTF8(trim(:logLocation), 
+                            ' ' || trim(char(:cur_date)) ||
+                            ' ' || trim(char(:cur_time)) ||
+                            ' ' || trim(:cur_sysnm) ||
+                            ' ' || trim(:logtxt), 
+                            OVERWRITE => 'APPEND',
+                            END_OF_LINE => 'CRLF');
+    when logsts = 'E';
+      if %len(%trim(logtxt)) = 0;
+        logtxt = '--- Process finished ---';
+      endif;
+      exec sql call QSYS2.IFS_WRITE_UTF8(trim(:logLocation), 
+                            ' ' || trim(char(:cur_date)) ||
+                            ' ' || trim(char(:cur_time)) ||
+                            ' ' || trim(:cur_sysnm) ||
+                            ' ' || trim(:logtxt), 
+                            OVERWRITE => 'APPEND',
+                            END_OF_LINE => 'CRLF');
+    other;
+      snd-msg 'Write Log failed.';
+  endsl;
+  return;
+end-proc;
+
+
+// - Compile prerequisite
+// create table ddscinfo.exsusrvol as
+//       (select objname,
+//               coalesce(save_volume, 'NA') as savvol,
+//               coalesce(save_sequence_number, 0) as savseq
+//           from table (
+//               qsys2.object_statistics(object_schema => 'QSYS', objtypelist => '*USRPRF')
+//             )
+//           where objname not like 'Q%' and save_volume <> 'NA'
+//           order by save_volume)
+//       with data;
+// - Compile command
+// CRTSQLRPGI OBJ(STEVE/RSTEXSUSR)                      
+//            SRCSTMF('/home/IBMECS/builds/for_sysMigration/Complete/rstexsusr.pgm.sqlrpgle')
+//            OPTION(*EVENTF)                           
+//            RPGPPOPT(*LVL2)                           
+//            CLOSQLCSR(*ENDMOD)                        
+//            DBGVIEW(*SOURCE)                          
+//            CVTCCSID(*JOB)                            
+//            COMPILEOPT('TGTCCSID(937)')
+
+
