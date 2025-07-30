@@ -1,5 +1,5 @@
 **free
-ctl-opt option(*srcstmt) dftactgrp(*no) alwnull(*usrctl) datfmt(*iso);
+ctl-opt option(*srcstmt) dftactgrp(*no);
 // usage: call steve/autcmpn3 ('steve' 'all')
 dcl-pi *n;
     option_lib char(10);
@@ -7,20 +7,28 @@ dcl-pi *n;
 end-pi;
 dcl-s stmt char(1500);
 dcl-s savvol char(71);
+dcl-s logsts char(1); // T: Log Title  C: Log Continue  E: Log Ending
+dcl-s logtxt char(1500);
+// set sql option
 exec sql set option commit = *none;
 // Upper input parameter
 option_lib = %upper(%trim(option_lib));     // Library
 option = %upper(%trim(option));             // Option
-
-writelog('T': 'Process Start. Lib: ' + %trim(option_lib) + ' Opt: ' + %trim(option));
+logsts = 'T';
+logtxt = '--- Process start ---';
+writelog(logsts:logtxt);
 // Check input parameter
 if %trim(option_lib) = '';
-    writelog('E': 'Library name not found. Quit...');
+    logsts = 'E';
+    logtxt = 'Library name not found. Quit...';
+    writelog(logsts:logtxt);
     *inlr = *on;
     return;
 endif;
 if %trim(option) <> 'RESET' and %trim(option) <> 'OWNER' and %trim(option) <> 'AUTL' and %trim(option) <> 'OBJAUT' and %trim(option) <> 'ALL';
-    writelog('E': 'Option not found. Quit...');
+    logsts = 'E';
+    logtxt = 'Option not found. Quit...';
+    writelog(logsts:logtxt);
     *inlr = *on;
     return;
 endif;
@@ -30,8 +38,7 @@ totcnt(option_lib);
 gencurfil(option_lib);
 // get save volume
 getsavvol(option_lib: savvol);
-writelog('C': 'option_lib: ' + %trim(option_lib) + '  original_file: ' + %trim(savvol));
-// generate file for option_lib in original system
+// generate compared file 
 exec sql drop table ddscinfo.objautfil if exists;
 stmt = 'create table ddscinfo.objautfil as ( ' +
         'select * from ddscinfo.' + %trim(savvol) + ' ' +
@@ -58,102 +65,34 @@ select;
         processObjaut();
     other;
 endsl;
-
-writelog('E': 'Process Finished.');
+logsts = 'E';
+logtxt = '--- Process finished ---';
+writelog(logsts:logtxt);
 *inlr = *on;
 return;
 
-dcl-proc autfix;
+dcl-proc gencurfil;
     dcl-pi *n;
-        option char(6);
+        option_lib char(10);
     end-pi;
-    dcl-ds workfil extname('DDSCINFO/WORKFIL') qualified end-ds;
-    dcl-s cmdstr char(800);
-    dcl-s returnCode int(10);
-    dcl-pr syscmd int(10) ExtProc('system');
-        *n Pointer Value Options(*String);
-    end-pr;
-    exec sql declare workfil cursor for 
-            select src_lib,src_obj,src_type,src_usr,src_autl,
-                    src_objaut,src_owner,src_objopr,src_objmgt, 
-                    src_objexs,src_objalt,src_objref,src_read, 
-                    src_add,src_upd,src_del,src_exec,
-                    tgt_lib,tgt_obj,tgt_type,tgt_usr,tgt_autl,
-                    tgt_objaut,tgt_owner,tgt_objopr,tgt_objmgt,
-                    tgt_objexs,tgt_objalt,tgt_objref,tgt_read,
-                    tgt_add,tgt_upd,tgt_del,tgt_exec 
-                    from ddscinfo.workfil;
-
-    exec sql open workfil;
-
-    select;
-        when option = 'OWNER';
-            dow '1';
-                exec sql fetch next from workfil into :workfil;
-                if sqlcod <> 0; leave; endif;
-                cmdstr = 'CHGOBJOWN OBJ(' + %trim(workfil.src_lib) + '/' + %trim(workfil.src_obj) +
-                         ') OBJTYPE(' + %trim(workfil.src_type) +
-                         ') NEWOWN(' + %trim(workfil.src_owner) + ')';
-                writelog('C': 'CMD: ' + %trim(cmdstr));
-                returnCode = syscmd(cmdstr);
-                if returnCode <> 0;
-                    writelog('E': 'CMD Failed. RC=' + %char(returnCode));
-                endif;
-            enddo;
-        when option = 'AUTL';
-            dow '1';
-                exec sql fetch next from workfil into :workfil;
-                if sqlcod <> 0; leave; endif;
-                cmdstr = 'GRTOBJAUT OBJ(' + %trim(workfil.src_lib) + '/' + %trim(workfil.src_obj) +
-                         ') OBJTYPE(' + %trim(workfil.src_type) +
-                         ') AUTL(' + %trim(workfil.src_autl) + ')';
-                writelog('C': 'CMD: ' + %trim(cmdstr));
-                returnCode = syscmd(cmdstr);
-                if returnCode <> 0;
-                    writelog('E': 'CMD Failed. RC=' + %char(returnCode));
-                endif;
-            enddo;
-        when option = 'OBJAUT';
-            dow '1';
-                exec sql fetch next from workfil into :workfil;
-                if sqlcod <> 0; leave; endif;
-                if workfil.src_objaut <> 'USER DEFINED';
-                    cmdstr = 'GRTOBJAUT OBJ(' + %trim(workfil.src_lib) + '/' + %trim(workfil.src_obj) +
-                             ') OBJTYPE(' + %trim(workfil.src_type) + ') USER(' + %trim(workfil.src_usr) +
-                             ') AUT(' + %trim(workfil.src_objaut) + ') REPLACE(*YES)';
-                elseif workfil.src_objaut = 'USER DEFINED';
-                    cmdstr = 'GRTOBJAUT OBJ(' + %trim(workfil.src_lib) + '/' + %trim(workfil.src_obj) +
-                             ') OBJTYPE(' + %trim(workfil.src_type) + ') USER(' + %trim(workfil.src_usr) +
-                             ') AUT(';
-                    if workfil.SRC_OBJOPR = 'YES'; cmdstr = %trimr(cmdstr) + ' *OBJOPR'; endif;
-                    if workfil.SRC_OBJMGT = 'YES'; cmdstr = %trimr(cmdstr) + ' *OBJMGT'; endif;
-                    if workfil.SRC_OBJEXS = 'YES'; cmdstr = %trimr(cmdstr) + ' *OBJEXIST'; endif;
-                    if workfil.SRC_OBJALT = 'YES'; cmdstr = %trimr(cmdstr) + ' *OBJALTER'; endif;
-                    if workfil.SRC_OBJREF = 'YES'; cmdstr = %trimr(cmdstr) + ' *OBJREF'; endif;
-                    if workfil.SRC_READ = 'YES'; cmdstr = %trimr(cmdstr) + ' *READ'; endif;
-                    if workfil.SRC_ADD = 'YES'; cmdstr = %trimr(cmdstr) + ' *ADD'; endif;
-                    if workfil.SRC_UPD = 'YES'; cmdstr = %trimr(cmdstr) + ' *UPD'; endif;
-                    if workfil.SRC_DEL = 'YES'; cmdstr = %trimr(cmdstr) + ' *DLT'; endif;
-                    if workfil.SRC_EXEC = 'YES'; cmdstr = %trimr(cmdstr) + ' *EXECUTE'; endif;
-                    cmdstr = %trimr(cmdstr) + ') REPLACE(*YES)';
-                endif;
-                writelog('C': 'CMD: ' + %trim(cmdstr));
-                returnCode = syscmd(cmdstr);
-                if returnCode <> 0;
-                    writelog('E': 'CMD Failed. RC=' + %char(returnCode));
-                endif;
-            enddo;
-    endsl;
-
-    exec sql close workfil;
+    dcl-s stmt char(1500);
+    exec sql drop table ddscinfo.objautcur if exists;
+    // generate file for current system
+    stmt = 'create table ddscinfo.objautcur as ( ' +
+            'select * from qsys2.obj_priv where sys_dname = ''' + %trim(option_lib) + 
+            ''' ) with data';
+    exec sql prepare pregencur from :stmt;
+    exec sql execute pregencur;
+    return;
 end-proc;
 
-dcl-proc query_handler;
+dcl-proc genQryf;
     dcl-pi *n;
         stmt char(1500);
     end-pi;
     dcl-s basic_stmt char(3000);
     dcl-s end_stmt char(1500);
+    dcl-ds workfil extname('DDSCINFO/WORKFIL') qualified end-ds;
     exec sql drop table ddscinfo.workfil if exists;
     basic_stmt =    'create table ddscinfo.workfil as ( ' +
                     'select ' + 
@@ -211,19 +150,21 @@ dcl-proc totcnt;
     exec sql declare totcnt cursor for pretotcnt;
     exec sql open totcnt using :option_lib;
     exec sql fetch next from totcnt into :tot_count;
-    writelog('C': 'Total objects in library ' + %trim(option_lib) + ': ' + %char(tot_count));
+    logsts = 'C';
+    logtxt = 'Total objects in library ' + %trim(option_lib) + ': ' + %char(tot_count);
+    writelog(logsts:logtxt);
     exec sql close totcnt;
     return;
 end-proc;
 
 dcl-proc processOwner;
-    dcl-pi *n; end-pi;
+    dcl-ds workfil extname('DDSCINFO/WORKFIL') qualified end-ds;
     dcl-s stmt char(1500);
-    stmt =  'where a.user_name = ''*PUBLIC'' ' +
-            'and b.user_name = ''*PUBLIC'' ' +
-            'and a.owner <> b.owner';
-    query_handler(stmt);
-    exec sql declare workfil cursor for 
+    dcl-s cmdstr char(800);
+    dcl-s returnCode int(10);
+    stmt =  'where a.user_name = ''*PUBLIC'' and a.owner <> b.owner';
+    genQryf(stmt);
+    exec sql declare wk_own cursor for 
             select src_lib,src_obj,src_type,src_usr,src_autl,
                     src_objaut,src_owner,src_objopr,src_objmgt, 
                     src_objexs,src_objalt,src_objref,src_read, 
@@ -233,44 +174,145 @@ dcl-proc processOwner;
                     tgt_objexs,tgt_objalt,tgt_objref,tgt_read,
                     tgt_add,tgt_upd,tgt_del,tgt_exec 
                     from ddscinfo.workfil;
-    exec sql open workfil;
-    exec sql fetch next from workfil into :workfil;
+    exec sql open wk_own;
+    exec sql fetch next from wk_own into :workfil;
     dow sqlcod = 0;
         cmdstr = 'CHGOBJOWN OBJ(' + %trim(workfil.src_lib) + '/' + %trim(workfil.src_obj) +
                          ') OBJTYPE(' + %trim(workfil.src_type) +
                          ') NEWOWN(' + %trim(workfil.src_owner) + ')';
-        writelog('C': 'CMD: ' + %trim(cmdstr));
-        returnCode = syscmd(cmdstr);
-        if returnCode <> 0;
-            writelog('E': 'CMD Failed. RC=' + %char(returnCode));
-        endif;
-        exec sql fetch next from workfil into :workfil;
+        logsts = 'C';
+        logtxt = %trim(cmdstr);
+        writelog(logsts:logtxt);
+        // returnCode = syscmd(cmdstr);
+        // if returnCode <> 0;
+        //     writelog('E': 'CMD Failed. RC=' + %char(returnCode));
+        // endif;
+        exec sql fetch next from wk_own into :workfil;
     enddo;
-    exec sql close workfil;        
+    exec sql close wk_own;
+    return;
 end-proc;
 
 dcl-proc processAutl;
-    dcl-pi *n; end-pi;
+    dcl-ds workfil extname('DDSCINFO/WORKFIL') qualified end-ds;
     dcl-s stmt char(1500);
+    dcl-s cmdstr char(800);
+    dcl-s returnCode int(10);
+    stmt =  'where a.user_name = ''*PUBLIC'' and ' +
+            '((a.autl is null and b.autl is not null) or ' + 
+            '(a.autl is not null and b.autl is null) or ' +
+            'a.autl <> b.autl)';
+    genQryf(stmt);
+    exec sql declare wk_autl cursor for 
+            select src_lib,src_obj,src_type,src_usr,src_autl,
+                    src_objaut,src_owner,src_objopr,src_objmgt, 
+                    src_objexs,src_objalt,src_objref,src_read, 
+                    src_add,src_upd,src_del,src_exec,
+                    tgt_lib,tgt_obj,tgt_type,tgt_usr,tgt_autl,
+                    tgt_objaut,tgt_owner,tgt_objopr,tgt_objmgt,
+                    tgt_objexs,tgt_objalt,tgt_objref,tgt_read,
+                    tgt_add,tgt_upd,tgt_del,tgt_exec 
+                    from ddscinfo.workfil;
+    exec sql open wk_autl;
+    exec sql fetch next from wk_autl into :workfil;
+    dow sqlcod = 0;
+        cmdstr = 'GRTOBJAUT OBJ(' + %trim(workfil.src_lib) + '/' + %trim(workfil.src_obj) +
+                         ') OBJTYPE(' + %trim(workfil.src_type) +
+                         ') USER(' + %trim(workfil.src_usr) +
+                         ') AUTL(' + %trim(workfil.src_owner) + ')';
+        logsts = 'C';
+        logtxt = %trim(cmdstr);
+        writelog(logsts:logtxt);
+        // returnCode = syscmd(cmdstr);
+        // if returnCode <> 0;
+        //     writelog('E': 'CMD Failed. RC=' + %char(returnCode));
+        // endif;
+        exec sql fetch next from wk_autl into :workfil;
+    enddo;
+    exec sql close wk_autl;
+    return;
 end-proc;
 
 dcl-proc processObjaut;
-    dcl-pi *n; end-pi;
+    dcl-ds workfil extname('DDSCINFO/WORKFIL') qualified end-ds;
     dcl-s stmt char(1500);
-end-proc;
-    
-
-dcl-proc gencurfil;
-    dcl-pi *n;
-        option_lib char(10);
-    end-pi;
-    dcl-s stmt char(1500);
-    exec sql drop table ddscinfo.objautcur if exists;
-    // generate file for current system
-    stmt = 'create table ddscinfo.objautcur as ( ' +
-       'select * from qsys2.obj_priv where sys_dname = ''' + %trim(option_lib) + ''' ) with data';
-    exec sql prepare pregencur from :stmt;
-    exec sql execute pregencur;
+    dcl-s cmdstr char(800);
+    dcl-s returnCode int(10);
+    stmt =  'where a.obj_auth <> b.obj_auth or ' + 
+            'a.objoper <> b.objoper or ' +
+            'a.objmgt <> b.objmgt or ' +
+            'a.objexist <> b.objexist or ' +
+            'a.objalter <> b.objalter or ' +
+            'a.objref <> b.objref or ' + 
+            'a.data_read <> b.data_read or ' + 
+            'a.data_add <> b.data_add or ' + 
+            'a.data_upd <> b.data_upd or ' + 
+            'a.data_del <> b.data_del or ' + 
+            'a.data_exec <> b.data_exec';
+    genQryf(stmt);
+    exec sql declare wk_objaut cursor for 
+            select src_lib,src_obj,src_type,src_usr,src_autl,
+                    src_objaut,src_owner,src_objopr,src_objmgt, 
+                    src_objexs,src_objalt,src_objref,src_read, 
+                    src_add,src_upd,src_del,src_exec,
+                    tgt_lib,tgt_obj,tgt_type,tgt_usr,tgt_autl,
+                    tgt_objaut,tgt_owner,tgt_objopr,tgt_objmgt,
+                    tgt_objexs,tgt_objalt,tgt_objref,tgt_read,
+                    tgt_add,tgt_upd,tgt_del,tgt_exec 
+                    from ddscinfo.workfil;
+    exec sql open wk_objaut;
+    exec sql fetch next from wk_objaut into :workfil;
+    dow sqlcod = 0;
+        if workfil.src_objaut <> 'USER DEFINED';
+            cmdstr = 'GRTOBJAUT OBJ(' + %trim(workfil.src_lib) + '/' + %trim(workfil.src_obj) +
+                             ') OBJTYPE(' + %trim(workfil.src_type) + ') USER(' + %trim(workfil.src_usr) +
+                             ') AUT(' + %trim(workfil.src_objaut) + ') REPLACE(*YES)';
+        else;
+            cmdstr = 'GRTOBJAUT OBJ(' + %trim(workfil.src_lib) + '/' + %trim(workfil.src_obj) +
+                     ') OBJTYPE(' + %trim(workfil.src_type) + ') USER(' + %trim(workfil.src_usr) +
+                     ') AUT(';
+            if workfil.SRC_OBJOPR = 'YES'; 
+                cmdstr = %trimr(cmdstr) + ' *OBJOPR'; 
+            endif;
+            if workfil.SRC_OBJMGT = 'YES'; 
+                cmdstr = %trimr(cmdstr) + ' *OBJMGT'; 
+            endif;
+            if workfil.SRC_OBJEXS = 'YES'; 
+                cmdstr = %trimr(cmdstr) + ' *OBJEXIST'; 
+            endif;
+            if workfil.SRC_OBJALT = 'YES'; 
+                cmdstr = %trimr(cmdstr) + ' *OBJALTER'; 
+            endif;
+            if workfil.SRC_OBJREF = 'YES'; 
+                cmdstr = %trimr(cmdstr) + ' *OBJREF'; 
+            endif;
+            if workfil.SRC_READ = 'YES'; 
+                cmdstr = %trimr(cmdstr) + ' *READ'; 
+            endif;
+            if workfil.SRC_ADD = 'YES'; 
+                cmdstr = %trimr(cmdstr) + ' *ADD'; 
+            endif;
+            if workfil.SRC_UPD = 'YES'; 
+                cmdstr = %trimr(cmdstr) + ' *UPD'; 
+            endif;
+            if workfil.SRC_DEL = 'YES'; 
+                cmdstr = %trimr(cmdstr) + ' *DLT'; 
+            endif;
+            if workfil.SRC_EXEC = 'YES'; 
+                cmdstr = %trimr(cmdstr) + ' *EXECUTE'; 
+            endif;
+            cmdstr = %trimr(cmdstr) + ') REPLACE(*YES)';
+        endif;
+        logsts = 'C'; 
+        logtxt = %trim(cmdstr);
+        writelog(logsts:logtxt);
+        // returnCode = syscmd(cmdstr);
+        // if returnCode <> 0;
+        //     writelog('E': 'CMD Failed. RC=' + %char(returnCode));
+        // endif;
+        exec sql fetch next from wk_objaut into :workfil;
+    enddo;
+    exec sql close wk_objaut;
     return;
 end-proc;
 
