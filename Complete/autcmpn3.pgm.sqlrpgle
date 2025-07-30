@@ -257,8 +257,7 @@ dcl-proc processAutl;
     dow sqlcod = 0;
         cmdstr = 'GRTOBJAUT OBJ(' + %trim(workfil.src_lib) + '/' + %trim(workfil.src_obj) +
                          ') OBJTYPE(' + %trim(workfil.src_type) +
-                         ') USER(' + %trim(workfil.src_usr) +
-                         ') AUTL(' + %trim(workfil.src_owner) + ')';
+                         ') AUTL(' + %trim(workfil.src_autl) + ')';
         logsts = 'C';
         logtxt = %trim(cmdstr);
         writelog(logsts:logtxt);
