@@ -81,6 +81,34 @@ dcl-proc gencurfil;
     return;
 end-proc;
 
+dcl-proc getsavvol;
+    dcl-pi *n;
+        option_lib char(10);
+        savvol char(71);
+    end-pi;
+    dcl-s stmt char(1500);
+    dcl-s cur_sysnm char(8) static;
+    // create temp file to compare
+    clear stmt;
+    stmt = 'select coalesce(save_volume,''*NONE'') as save_volume ' +
+        'from table(qsys2.object_statistics( ' +
+        'object_schema => ''' + %trim(option_lib) + ''', ' +
+        'objtypelist => ''*LIB''))';
+    exec sql prepare pregetvol from :stmt;
+    exec sql declare getvol cursor for pregetvol;
+    exec sql open getvol;
+    exec sql fetch next from getvol into :savvol;
+    snd-msg 'save_volume: ' + %trim(savvol);
+    if %trim(savvol) = '*NONE';
+        exec sql values current server into :cur_sysnm;
+        savvol = 'OBJAUT' + %subst(%trim(cur_sysnm) : 3 : 3);
+    else;
+        savvol = 'OBJAUT' + %subst(%trim(savvol) : 1 : 3);
+    endif;
+    exec sql close getvol;
+    return;
+end-proc;
+
 dcl-proc genorgfil;
     dcl-pi *n;
         option_lib char(10);
@@ -324,34 +352,6 @@ dcl-proc processObjaut;
         exec sql fetch next from wk_objaut into :workfil;
     enddo;
     exec sql close wk_objaut;
-    return;
-end-proc;
-
-dcl-proc getsavvol;
-    dcl-pi *n;
-        option_lib char(10);
-        savvol char(71);
-    end-pi;
-    dcl-s stmt char(1500);
-    dcl-s cur_sysnm char(8) static;
-    // create temp file to compare
-    clear stmt;
-    stmt = 'select coalesce(save_volume,''*NONE'') as save_volume ' +
-        'from table(qsys2.object_statistics( ' +
-        'object_schema => ''' + %trim(option_lib) + ''', ' +
-        'objtypelist => ''*LIB''))';
-    exec sql prepare pregetvol from :stmt;
-    exec sql declare getvol cursor for pregetvol;
-    exec sql open getvol;
-    exec sql fetch next from getvol into :savvol;
-    snd-msg 'save_volume: ' + %trim(savvol);
-    if %trim(savvol) = '*NONE';
-        exec sql values current server into :cur_sysnm;
-        savvol = 'OBJAUT' + %subst(%trim(cur_sysnm) : 3 : 3);
-    else;
-        savvol = 'OBJAUT' + %subst(%trim(savvol) : 1 : 3);
-    endif;
-    exec sql close getvol;
     return;
 end-proc;
 
