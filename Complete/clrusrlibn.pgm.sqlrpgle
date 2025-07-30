@@ -94,7 +94,8 @@ dow sqlcod = 0;
                 %scan('FUKGISN' : liblst.objname : 1) <> 1 and
                 %scan('OSKGISN' : liblst.objname : 1) <> 1 and  
                 %scan('VCKGISN' : liblst.objname : 1) <> 1 and 
-                %scan('FEKGISN' : liblst.objname : 1) <> 1;
+                %scan('FEKGISN' : liblst.objname : 1) <> 1 and
+                %scan('LAKEVIEW' : liblst.objname : 1) <> 1;
 
             // snd-msg %trim(liblst.objname);
             check_db_relation(liblst.objname);
