@@ -335,7 +335,7 @@ dcl-proc writelog;
         exec sql values current server into :cur_sysnm;
     endif;
     if %len(%trim(logLocation)) = 0;
-        logLocation = '/home/clrusrlibn' +
+        logLocation = '/tmp/clrusrlibn' +
                         '_' + %trim(%scanrpl('-' : '' : %char(cur_date))) + 
                         '_' + %trim(%scanrpl('.' : '' : %char(cur_time))) + '.log';
     endif;
