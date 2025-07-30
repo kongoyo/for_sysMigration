@@ -304,12 +304,7 @@ dcl-proc process_Command;
         composedCmd = %trim(cmdstr);
         returnCode = syscmd(composedCmd);
     else;
-        composedCmd = 'SBMJOB CMD(' + %trim(cmdstr) + ') ' +                
-                    'JOB(*JOBD) ' +             
-                    'LOG(*JOBD *JOBD *SECLVL) ' +
-                    'LOGCLPGM(*YES) ' +          
-                    'JOBMSGQFL(*PRTWRAP) ' +     
-                    'INQMSGRPY(*SYSRPYL)';
+        composedCmd = %trim(cmdstr);
     endif;
     // returnCode = syscmd(composedCmd);
     clear logtxt;
