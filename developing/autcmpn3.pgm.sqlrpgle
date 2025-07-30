@@ -365,7 +365,7 @@ dcl-proc writelog;
         // test only
     endif;
     if %len(%trim(logLocation)) = 0;
-        logLocation = '/home/autcmpn_' + %trim(cur_sysnm) + 
+        logLocation = '/tmp/autcmpn3_' + %trim(cur_sysnm) + 
                         '_' + %trim(%scanrpl('-' : '' : %char(cur_date))) + 
                         '_' + %trim(%scanrpl('.' : '' : %char(cur_time))) + '.log';
     endif;
