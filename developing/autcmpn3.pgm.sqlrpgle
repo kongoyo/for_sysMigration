@@ -358,11 +358,6 @@ dcl-proc writelog;
     exec sql values(current_time) into :cur_time;
     if %len(%trim(cur_sysnm)) = 0;
         exec sql values current server into :cur_sysnm;
-        // test only
-        if %scan('CLARK' : %trim(cur_sysnm)) = 1;
-            cur_sysnm = 'KSG01N';
-        endif;
-        // test only
     endif;
     if %len(%trim(logLocation)) = 0;
         logLocation = '/tmp/autcmpn3_' + %trim(cur_sysnm) + 
