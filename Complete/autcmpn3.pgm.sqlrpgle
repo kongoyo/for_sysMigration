@@ -60,11 +60,21 @@ select;
         processObjaut();
     other;
 endsl;
+
+clearTmp();
+
 logsts = 'E';
 logtxt = '--- Process finished ---';
 writelog(logsts:logtxt);
 *inlr = *on;
 return;
+
+dcl-proc clearTmp;
+    exec sql drop table ddscinfo.objautcur if exists;
+    exec sql drop table ddscinfo.objautfil if exists;
+    exec sql drop table ddscinfo.workfil if exists;
+    return;
+end-proc;
 
 dcl-proc gencurfil;
     dcl-pi *n;
@@ -370,7 +380,7 @@ dcl-proc writelog;
         exec sql values current server into :cur_sysnm;
     endif;
     if %len(%trim(logLocation)) = 0;
-        logLocation = '/tmp/autcmpn3_' + %trim(cur_sysnm) + 
+        logLocation = '/tmp/autcmp/autcmpn3_' + %trim(cur_sysnm) + 
                         '_' + %trim(%scanrpl('-' : '' : %char(cur_date))) + 
                         '_' + %trim(%scanrpl('.' : '' : %char(cur_time))) + '.log';
     endif;
