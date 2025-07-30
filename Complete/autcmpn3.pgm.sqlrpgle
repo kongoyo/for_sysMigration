@@ -39,12 +39,7 @@ gencurfil(option_lib);
 // get save volume
 getsavvol(option_lib: savvol);
 // generate compared file 
-exec sql drop table ddscinfo.objautfil if exists;
-stmt = 'create table ddscinfo.objautfil as ( ' +
-        'select * from ddscinfo.' + %trim(savvol) + ' ' +
-        'where sys_dname = ''' + %trim(option_lib) + ''' ) with data';
-exec sql prepare pregenfil from :stmt;
-exec sql execute pregenfil;
+genorgfil(option_lib: savvol);
 // process selections
 select;
     // query original system, owner diff
@@ -83,6 +78,22 @@ dcl-proc gencurfil;
             ''' ) with data';
     exec sql prepare pregencur from :stmt;
     exec sql execute pregencur;
+    return;
+end-proc;
+
+dcl-proc genorgfil;
+    dcl-pi *n;
+        option_lib char(10);
+        savvol char(71);
+    end-pi;
+    dcl-s stmt char(1500);
+    // generate compared file 
+    exec sql drop table ddscinfo.objautfil if exists;
+    stmt = 'create table ddscinfo.objautfil as ( ' +
+        'select * from ddscinfo.' + %trim(savvol) + ' ' +
+        'where sys_dname = ''' + %trim(option_lib) + ''' ) with data';
+    exec sql prepare pregenfil from :stmt;
+    exec sql execute pregenfil;
     return;
 end-proc;
 
