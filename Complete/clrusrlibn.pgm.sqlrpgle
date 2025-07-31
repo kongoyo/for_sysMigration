@@ -88,7 +88,6 @@ dow sqlcod = 0;
                 liblst.objname <> 'SYSTOOLS' and
                 %scan('DDSCINFO' : liblst.objname : 1) <> 1 and
                 %scan('RMT' : liblst.objname : 1) <> 1 and
-                %scan('HOYA' : liblst.objname : 1) <> 1 and
                 %scan('PMEDH' : liblst.objname : 1) <> 1 and 
                 %scan('SGKGISN' : liblst.objname : 1) <> 1 and
                 %scan('FUKGISN' : liblst.objname : 1) <> 1 and
