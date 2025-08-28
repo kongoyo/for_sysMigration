@@ -1,0 +1,93 @@
+/********************************************************************/
+/*                                                                  */
+/* 5770SS1 V7R5M0 220415     RTVCLSRC Output     25/08/04 12:23:39  */
+/*                                                                  */
+/* Program name . . . . . . . . . . . . . . :   RSTUSR1           PN*/
+/* Library name . . . . . . . . . . . . . . :   STEVE             PL*/
+/* Module name  . . . . . . . . . . . . . . :   RSTUSR1           MN*/
+/* Library name . . . . . . . . . . . . . . :   *LIBL             ML*/
+/* Original source file . . . . . . . . . . :                     SN*/
+/* Library name . . . . . . . . . . . . . . :                     SL*/
+/* Original source member . . . . . . . . . :                     SM*/
+/* Source file change                                               */
+/*   date/time  . . . . . . . . . . . . . . :                     SC*/
+/* Text . . . :                                                   TX*/
+/* Owner  . . . . . . . . . . . . . . . . . :   IBMECS            OW*/
+/* Retrieve included source . . . . . . . . :   *NO               RI*/
+/*                                                                ED*/
+/********************************************************************/
+             PGM        PARM(&TAPDEV)
+             DCL        VAR(&TAPDEV) TYPE(*CHAR) LEN(10)
+
+             CHGVAR     VAR(&TAPDEV) VALUE(%UPPER(&TAPDEV))
+             RSTUSRPRF  DEV(&TAPDEV) USRPRF(AUTOUSR031 AUTOUSR032 +
+                          AUTOUSR064 PSUSER SGCM01 SMSUSR) +
+                          VOL(052Y25) ALWOBJDIF(*ALL) SECDTA(*USRPRF)
+             RSTUSRPRF  DEV(&TAPDEV) USRPRF(AUTOUSR031 AUTOUSR032 +
+                          AUTOUSR064 PSUSER SGCM01 SMSUSR) +
+                          VOL(052Y25) ALWOBJDIF(*ALL) SECDTA(*PVTAUT)
+             RSTUSRPRF  DEV(&TAPDEV) USRPRF(AUTOUSR031 AUTOUSR032 +
+                          AUTOUSR064 PSUSER SGCM01 SMSUSR) +
+                          VOL(052Y25) ALWOBJDIF(*ALL) SECDTA(*PWDGRP)
+             RSTAUT     USRPRF(AUTOUSR031 AUTOUSR032 AUTOUSR064 +
+                          PSUSER SGCM01 SMSUSR)
+
+             RSTUSRPRF  DEV(&TAPDEV) USRPRF(CA029) VOL(500Y25) +
+                          ALWOBJDIF(*ALL) SECDTA(*USRPRF)
+             RSTUSRPRF  DEV(&TAPDEV) USRPRF(CA029) VOL(500Y25) +
+                          ALWOBJDIF(*ALL) SECDTA(*PVTAUT)
+             RSTUSRPRF  DEV(&TAPDEV) USRPRF(CA029) VOL(500Y25) +
+                          ALWOBJDIF(*ALL) SECDTA(*PWDGRP)
+             RSTAUT     USRPRF(CA029)
+
+             RSTUSRPRF  DEV(&TAPDEV) USRPRF(AUTOUSR081 BTUSER CA000 +
+                          CA0T CA0TX FUITKS HTHPGMR KCOFSCRT KGIPIS +
+                          KGIPRC KGIST01 KSOFUSR KSOFUSR1 KSOFUSR2 +
+                          KSOFUSR3 MIMIXOWN SCRTDB2 SGCM02 SGCM03 +
+                          SGMIS TXCOMM TXXADM UWADM WS5250) +
+                          VOL(800Y25) ALWOBJDIF(*ALL) SECDTA(*USRPRF)
+             RSTUSRPRF  DEV(&TAPDEV) USRPRF(AUTOUSR081 BTUSER CA000 +
+                          CA0T CA0TX FUITKS HTHPGMR KCOFSCRT KGIPIS +
+                          KGIPRC KGIST01 KSOFUSR KSOFUSR1 KSOFUSR2 +
+                          KSOFUSR3 MIMIXOWN SCRTDB2 SGCM02 SGCM03 +
+                          SGMIS TXCOMM TXXADM UWADM WS5250) +
+                          VOL(800Y25) ALWOBJDIF(*ALL) SECDTA(*PVTAUT)
+             RSTUSRPRF  DEV(&TAPDEV) USRPRF(AUTOUSR081 BTUSER CA000 +
+                          CA0T CA0TX FUITKS HTHPGMR KCOFSCRT KGIPIS +
+                          KGIPRC KGIST01 KSOFUSR KSOFUSR1 KSOFUSR2 +
+                          KSOFUSR3 MIMIXOWN SCRTDB2 SGCM02 SGCM03 +
+                          SGMIS TXCOMM TXXADM UWADM WS5250) +
+                          VOL(800Y25) ALWOBJDIF(*ALL) SECDTA(*PWDGRP)
+             RSTAUT     USRPRF(AUTOUSR081 BTUSER CA000 CA0T CA0TX +
+                          FUITKS HTHPGMR KCOFSCRT KGIPIS KGIPRC +
+                          KGIST01 KSOFUSR KSOFUSR1 KSOFUSR2 +
+                          KSOFUSR3 MIMIXOWN SCRTDB2 SGCM02 SGCM03 +
+                          SGMIS TXCOMM TXXADM UWADM WS5250)
+
+             RSTUSRPRF  DEV(&TAPDEV) USRPRF(AUTOUSR021 AUTOUSR033 +
+                          AUTOUSR051 AUTOUSR052 AUTOUSR061 +
+                          AUTOUSR062 AUTOUSR063 CRMUSER EBLUSER +
+                          EDWPRG HQUSER KGIKP MDUNTITLED MRADMIN +
+                          MWTRF PISUSER S00CMEMG SALESKEYIN +
+                          SALESQUERY SMP) VOL(G01Y25) +
+                          ALWOBJDIF(*ALL) SECDTA(*USRPRF)
+             RSTUSRPRF  DEV(&TAPDEV) USRPRF(AUTOUSR021 AUTOUSR033 +
+                          AUTOUSR051 AUTOUSR052 AUTOUSR061 +
+                          AUTOUSR062 AUTOUSR063 CRMUSER EBLUSER +
+                          EDWPRG HQUSER KGIKP MDUNTITLED MRADMIN +
+                          MWTRF PISUSER S00CMEMG SALESKEYIN +
+                          SALESQUERY SMP) VOL(G01Y25) +
+                          ALWOBJDIF(*ALL) SECDTA(*PVTAUT)
+             RSTUSRPRF  DEV(&TAPDEV) USRPRF(AUTOUSR021 AUTOUSR033 +
+                          AUTOUSR051 AUTOUSR052 AUTOUSR061 +
+                          AUTOUSR062 AUTOUSR063 CRMUSER EBLUSER +
+                          EDWPRG HQUSER KGIKP MDUNTITLED MRADMIN +
+                          MWTRF PISUSER S00CMEMG SALESKEYIN +
+                          SALESQUERY SMP) VOL(G01Y25) +
+                          ALWOBJDIF(*ALL) SECDTA(*PWDGRP)
+             RSTAUT     USRPRF(AUTOUSR021 AUTOUSR033 AUTOUSR051 +
+                          AUTOUSR052 AUTOUSR061 AUTOUSR062 +
+                          AUTOUSR063 CRMUSER EBLUSER EDWPRG HQUSER +
+                          KGIKP MDUNTITLED MRADMIN MWTRF PISUSER +
+                          S00CMEMG SALESKEYIN SALESQUERY SMP)
+             ENDPGM

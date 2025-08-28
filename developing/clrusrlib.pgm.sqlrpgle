@@ -214,15 +214,7 @@ Dcl-Proc CLRUSRLIB;
                         clear cmdstr;
                         cmdstr = '  ENDJRNPF FILE(*ALL) ' +
                              'JRN(' + %trim(liblst.objname) + '/' + %trim(objlst.objname) + ')';
-                        // snd-msg %trimr(cmdstr);
-                        logtxt = ' ' + %trim(%char(cur_date)) + 
-                                 ' ' + %trim(%char(cur_time)) + 
-                                 ' ' + %trim(cur_sysnm) + 
-                                 ' ' + %trimr(cmdstr);
-                        exec sql call QSYS2.IFS_WRITE(trim(:ifsfnm),
-                                  trim(:logtxt),
-                                  OVERWRITE => 'APPEND',
-                                  END_OF_LINE => 'CRLF'); 
+                        // returnCode = syscmd(cmdstr); // 註記：停用ENDJRNPF實際執行
                     // returnCode = syscmd(cmdstr);
                     endif;
                     exec sql fetch from objlst into :objlst.objname;
@@ -232,7 +224,7 @@ Dcl-Proc CLRUSRLIB;
                 // Process Clear Library
                 clear cmdstr;
                 cmdstr = '  CLRLIB LIB(' + %trim(liblst.objname) + ')';
-                // snd-msg %trimr(cmdstr);
+                // returnCode = syscmd(cmdstr); // 註記：停用CLRLIB實際執行
                 logtxt = ' ' + %trim(%char(cur_date)) + 
                                  ' ' + %trim(%char(cur_time)) + 
                                  ' ' + %trim(cur_sysnm) + 
@@ -241,7 +233,6 @@ Dcl-Proc CLRUSRLIB;
                                   trim(:logtxt),
                                   OVERWRITE => 'APPEND',
                                   END_OF_LINE => 'CRLF');
-                // returnCode = syscmd(cmdstr);
             endif;
         endif;
         exec sql fetch from liblst into :liblst.objname;

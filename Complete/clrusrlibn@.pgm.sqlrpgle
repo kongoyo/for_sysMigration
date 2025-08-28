@@ -1,6 +1,6 @@
 **FREE
-// 呼叫方式：CALL PGM(STEVE/CLRUSRLIBN) PARM(('*ALLUSR'))
-// 參數：*ALL *ALLUSR 或指定庫名
+// CALL PGM(STEVE/CLRUSRLIBN) PARM(('*ALLUSR'))
+// parameter: *ALL *ALLUSR or specific library
 //
 ctl-opt option(*srcstmt) dftactgrp(*no);
 
@@ -10,32 +10,32 @@ End-Pi;
 dcl-ds liblst qualified;
     objname char(10);
 end-ds;
-dcl-s logsts char(1); // T: 標題  C: 過程  E: 結束
+dcl-s logsts char(1); // T: Log Title  C: Log Continue  E: Log Ending
 dcl-s logtxt char(1500);
 dcl-s rpyoption char(3);
 dcl-s cmdstr char(500);
 dcl-s returnCode int(5);
 dcl-s stmt char(1500);
 
-// 主程序
+// Main procedure
 clear logtxt;
 logsts = 'T';
-write_log(logsts : logtxt);
+writelog(logsts : logtxt);
 
 clear logtxt;
 logsts = 'C';
-logtxt = '開始清除使用者庫';
-write_log(logsts : logtxt);
+logtxt = 'Process clear user libraries start';
+writelog(logsts : logtxt);
 
 clear logtxt;
 logsts = 'C';
 logtxt = '------------------------------';
-write_log(logsts : logtxt);
+writelog(logsts : logtxt);
 //
 rpyoption = 'STR';
 for_reply_List(rpyoption);
 
-// 建立關聯表
+// Generate db_relatiion_table
 exec sql set option commit = *none;
 
 clear stmt;
@@ -63,7 +63,9 @@ stmt = 'create table qtemp.pfdbrlst as ' +
 exec sql prepare precrtdbrlst from :stmt;
 exec sql execute precrtdbrlst;
 
-// 取得庫名
+// Get Library Name
+snd-msg '***** Get Library Name *****';
+
 clear stmt;
 stmt = 'select ' +
            'coalesce(objname, '''') as objname ' +
@@ -94,6 +96,7 @@ dow sqlcod = 0;
                 %scan('FEKGISN' : liblst.objname : 1) <> 1 and
                 %scan('LAKEVIEW' : liblst.objname : 1) <> 1;
 
+            // snd-msg %trim(liblst.objname);
             check_db_relation(liblst.objname);
             
         endif;
@@ -108,16 +111,16 @@ for_reply_List(rpyoption);
 clear logtxt;
 logsts = 'C';
 logtxt = '------------------------------';
-write_log(logsts : logtxt);
+writelog(logsts : logtxt);
 
 clear logtxt;
 logsts = 'C';
-logtxt = '結束清除使用者庫';
-write_log(logsts : logtxt);
+logtxt = 'Process clear user libraries end';
+writelog(logsts : logtxt);
 
 clear logtxt;
 logsts = 'E';
-write_log(logsts : logtxt);
+writelog(logsts : logtxt);
 
 *inlr = *on;
 return;
@@ -133,6 +136,7 @@ dcl-proc check_db_relation;
     dcl-ds whreli likeds(pflst);
     dcl-s stmt char(1500);
 
+    // snd-msg 'check_db_relation: ' + %trim(exe_schema);
     clear stmt;
     stmt = 'select distinct whrli, whreli ' + 
             'from qtemp.pfdbrlst ' +
@@ -162,6 +166,7 @@ dcl-proc check_db_relation;
         exec sql fetch from whreli into :whreli;
     endif;
     exec sql close whreli;
+    // clear_usrlib(exe_schema);
 
     return;
 end-proc;
@@ -178,12 +183,13 @@ dcl-proc for_reply_List;
     dcl-s rplylst_reply varchar(32) static;
     dcl-s cmdstr char(500);
     dcl-s returnCode int(5);
-    // 設定工作日誌
+    // change job to log msg
     cmdstr = 'CHGJOB LOG(4 00 *MSG) LOGCLPGM(*YES) INQMSGRPY(*SYSRPYL)';
     returnCode = syscmd(cmdstr);
+    // If it doesn't exist, add it to auto-reply with 'I' (Ignore)
     select;
         when option = 'STR';
-            // 檢查 CPA7025 回覆清單
+            // Check if reply list entry for CPA7025 exists
             exec sql drop table qtemp.replylst if exists;
             exec sql create table qtemp.replylst as (
                         Select cast(sequence_number as char(10)) as sequence_number,
@@ -196,6 +202,7 @@ dcl-proc for_reply_List;
                     from qtemp.replylst
                     fetch first 1 row only;
                 if sqlcod = 0;
+                    snd-msg 'Before: ' + %trim(rplylst_reply);
                     clear cmdstr;
                     cmdstr = 'CHGRPYLE SEQNBR(' + %trim(rplylst_seqnum) + 
                                 ') MSGID(*SAME) RPY(I)';
@@ -207,13 +214,14 @@ dcl-proc for_reply_List;
                 endif;
             endif;
         when option = 'END';
-            // 檢查 CPA7025 回覆清單
+            // Check if reply list entry for CPA7025 exists
             exec sql select sequence_number, message_id, message_reply
                     into :rplylst_seqnum, :rplylst_msgid, :rplylst_reply
                     from qtemp.replylst
                     fetch first 1 row only;
             if sqlcod =0;                    
                 clear cmdstr;
+                snd-msg 'After: ' + %trim(rplylst_reply);
                 cmdstr = 'CHGRPYLE SEQNBR(' + %trim(rplylst_seqnum) + 
                             ') MSGID('+ %trim(rplylst_msgid) +
                             ') RPY(' + %trim(rplylst_reply) + ')';
@@ -250,27 +258,27 @@ dcl-proc clear_usrlib;
     exec sql declare objlst cursor for preobjlst;
     exec sql open objlst;
     exec sql fetch from objlst into :objlst;
+                //
     dow sqlcod = 0;
         if sqlcod = 0;
-            // 處理日誌及接收器
+                    // Process Journals & receivers
             clear cmdstr;
             cmdstr = 'ENDJRNPF FILE(*ALL) ' +
                                     'JRN(' + %trim(exe_schema) + 
                                     '/' + %trim(objlst.objname) + ')';
-            // process_Command(cmdstr:returnCode); // 註記：停用ENDJRNPF指令
+            process_Command(cmdstr:returnCode);
             exec sql fetch from objlst into :objlst.objname;
         endif;
     enddo;
     exec sql close objlst;
-    // 清除庫
+                // Process Clear Library
     clear cmdstr;
     cmdstr = 'CLRLIB LIB(' + %trim(exe_schema) + ')';
-    // process_Command(cmdstr:returnCode); // 註記：停用CLRLIB指令
+    process_Command(cmdstr:returnCode);
 
-    // 刪除庫
     clear cmdstr;
     cmdstr = 'DLTLIB LIB(' + %trim(exe_schema) + ')';
-    // process_Command(cmdstr:returnCode); // 註記：停用DLTLIB指令
+    process_Command(cmdstr:returnCode);
 
     return;
 end-proc;
@@ -285,30 +293,36 @@ dcl-proc process_Command;
         *n Pointer Value Options(*String);
     end-pr;
 
+    // composedCmd = 'SBMJOB CMD(' + %trim(cmdstr) + ') ' +                
+    //                 'JOB(*JOBD) ' +             
+    //                 'LOG(*JOBD *JOBD *SECLVL) ' +
+    //                 'LOGCLPGM(*YES) ' +          
+    //                 'JOBMSGQFL(*PRTWRAP) ' +     
+    //                 'INQMSGRPY(*SYSRPYL)';
     if %scan('DSPDBR' : %trim(cmdstr) : 1) = 1;
         composedCmd = %trim(cmdstr);
         returnCode = syscmd(composedCmd);
     else;
         composedCmd = %trim(cmdstr);
     endif;
-    // returnCode = syscmd(composedCmd); // 註記：停用所有指令執行
+    // returnCode = syscmd(composedCmd);
     clear logtxt;
     logsts = 'C';
-    logtxt = '指令: ' + %trim(composedCmd);
-    write_log(logsts : logtxt);
+    logtxt = 'Command: ' + %trim(composedCmd);
+    writelog(logsts : logtxt);
     return;
 end-proc;
 
-// 模組化log記錄
-dcl-proc write_log;
+dcl-proc writelog;
     dcl-pi *n;
-        logsts char(1); // T: 標題  C: 過程  E: 結束
+        logsts char(1); // T: Log Title  C: Log Continue  E: Log Ending
         logtxt char(1500);
     end-pi;
     dcl-s cur_date date;
     dcl-s cur_time time;
     dcl-s cur_sysnm char(8) static;
     dcl-s logLocation char(200) static;
+    //
     exec sql values(current_date) into :cur_date;
     exec sql values(current_time) into :cur_time;
     if %len(%trim(cur_sysnm)) = 0;
@@ -326,7 +340,7 @@ dcl-proc write_log;
                             OVERWRITE => 'REPLACE',
                             END_OF_LINE => 'NONE');
             if %len(%trim(logtxt)) = 0;
-                logtxt = '--- 開始 ---';
+                logtxt = '--- Process start ---';
             endif;
             exec sql call QSYS2.IFS_WRITE_UTF8(trim(:logLocation), 
                             ' ' || trim(char(:cur_date)) ||
@@ -336,7 +350,7 @@ dcl-proc write_log;
                             END_OF_LINE => 'CRLF');
         when logsts = 'C';
             if %len(%trim(logtxt)) = 0;
-                logtxt = '--- 執行中 ---';
+                logtxt = '--- Process continue ---';
             endif;
             exec sql call QSYS2.IFS_WRITE_UTF8(trim(:logLocation), 
                             ' ' || trim(char(:cur_date)) ||
@@ -347,7 +361,7 @@ dcl-proc write_log;
                             END_OF_LINE => 'CRLF');
         when logsts = 'E';
             if %len(%trim(logtxt)) = 0;
-                logtxt = '--- 結束 ---';
+                logtxt = '--- Process finished ---';
             endif;
             exec sql call QSYS2.IFS_WRITE_UTF8(trim(:logLocation), 
                             ' ' || trim(char(:cur_date)) ||
@@ -357,6 +371,7 @@ dcl-proc write_log;
                             OVERWRITE => 'APPEND',
                             END_OF_LINE => 'CRLF');
         other;
+            snd-msg 'Write Log failed.';
     endsl;
     return;
 end-proc;
