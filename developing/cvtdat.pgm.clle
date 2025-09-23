@@ -1,0 +1,37 @@
+PGM parm(&TS1 &TS2)
+             DCL        VAR(&TS1) TYPE(*CHAR) LEN(26)
+             DCL        VAR(&TS2) TYPE(*CHAR) LEN(26)
+             DCL        VAR(&TS1D) TYPE(*CHAR) LEN(10) /* 用於儲存日期部分 */
+             DCL        VAR(&TS2D) TYPE(*CHAR) LEN(10) /* 用於儲存日期部分 */
+             DCL        VAR(&DAYS) TYPE(*DEC) LEN(5 0)
+             DCL        VAR(&DAYS1) TYPE(*CHAR) LEN(7)
+             DCL        VAR(&DAYS2) TYPE(*CHAR) LEN(7)
+             DCL        VAR(&N_DAYS1) TYPE(*DEC) LEN(7 0)
+             DCL        VAR(&N_DAYS2) TYPE(*DEC) LEN(7 0)
+
+/* Assign timestamp values */
+             /* CHGVAR     VAR(&TS1) VALUE('2025-09-19-11.46.37.000000') */
+             /* CHGVAR     VAR(&TS2) VALUE('2025-11-19-11.46.37.000000') */
+
+/* Extract the date portion (first 10 characters) from the timestamp */
+             CHGVAR     VAR(&TS1D) VALUE(%SST(&TS1 1 10))
+             CHGVAR     VAR(&TS2D) VALUE(%SST(&TS2 1 10))
+
+/* Convert the date portion to Julian Day */
+             CVTDAT     DATE(&TS1D) TOVAR(&DAYS1) FROMFMT(*ISO) +
+                          TOFMT(*JUL) TOSEP(*NONE)
+             CVTDAT     DATE(&TS2D) TOVAR(&DAYS2) FROMFMT(*ISO) +
+                          TOFMT(*JUL) TOSEP(*NONE)
+
+/* Convert character Julian Day to numeric for calculation */
+             CHGVAR     VAR(&N_DAYS1) VALUE(&DAYS1)
+             CHGVAR     VAR(&N_DAYS2) VALUE(&DAYS2)
+
+/* Calculate the difference in days */
+             CHGVAR     VAR(&DAYS) VALUE(&N_DAYS2 - &N_DAYS1)
+
+/* Display the result */
+             SNDPGMMSG  MSG('Days between ' *CAT &TS1 *BCAT ' and ' *CAT &TS2 *BCAT +
+                          ' is ' *CAT %CHAR(&DAYS))
+
+             ENDPGM

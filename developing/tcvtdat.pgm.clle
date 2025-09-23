@@ -1,0 +1,17 @@
+PGM
+             DCL        VAR(&TS1) TYPE(*CHAR) LEN(26)
+             DCL        VAR(&TS2) TYPE(*CHAR) LEN(26)
+             DCL        VAR(&DAYS) TYPE(*CHAR) LEN(10) /* 修正：從 *DEC 改為 *CHAR */
+
+/* Assign timestamp values */
+             CHGVAR     VAR(&TS1) VALUE('2025-09-19-11.46.37.000000')
+             CHGVAR     VAR(&TS2) VALUE('2025-10-19-11.46.37.000000')
+
+/* Call the program to calculate the days */
+             CALL       PGM(CVTDAT) PARM(&TS1 &TS2 &DAYS)
+
+/* Display the result */
+             SNDPGMMSG  MSG('Days between ' *CAT &TS1 *CAT ' and ' *CAT &TS2 *CAT +
+                          ' is ' *CAT &DAYS)
+
+             ENDPGM
